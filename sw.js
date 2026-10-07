@@ -1,6 +1,6 @@
-const CACHE='officina-shell-v1.3.0-photo-prices';
+const CACHE='officina-shell-v1.3.1-fresh-menu';
 const ASSETS=['./','./index.html','./app.css','./app.js','./core.js','./reports.js','./crypto.js','./storage.js','./manifest.webmanifest','./assets/meccanico.webp','./assets/icon-180.png','./assets/icon-192.png','./assets/icon-512.png'];
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS))));
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS.map(path=>new Request(path,{cache:'reload'}))))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('officina-shell-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});
 self.addEventListener('fetch',event=>{
