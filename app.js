@@ -2,6 +2,7 @@ import {reportData,reportCSV,reportHTML} from './reports.js';
 import {WORKS,MAX_IMPORT_BYTES,newID,emptyDatabase,normalizePlate,integer,amount,today,currentKM,latest,due,sortedServices,serviceTitle,validateDatabase,validateChronology,parseBackup,backupObject,demoDatabase} from './core.js';
 import {LocalStore} from './storage.js';
 import {newSession,seal,unseal} from './crypto.js';
+const selectableWorks=new Set(['engineOil','oilFilter','airFilter','pollenFilter','timing','frontShocks','rearShocks','frontBrakes','rearBrakes','frontLights','rearLights','brakeDiscs']);
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const paths={car:'M3 10l2-6h14l2 6M3 10h18v9H3zM6 19v2m12-2v2M6 14h2m8 0h2',wrench:'M14 4a6 6 0 0 0-7 7l-4 4a3 3 0 0 0 4 4l4-4a6 6 0 0 0 7-7l-4 3-3-3z',clock:'M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',shield:'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6',plus:'M12 5v14M5 12h14',search:'M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',back:'M15 5l-7 7 7 7',arrow:'M9 5l7 7-7 7',edit:'M15 4l5 5M4 20l1-5L16 4a2 2 0 0 1 4 4L9 19z',trash:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',close:'M6 6l12 12M18 6L6 18',download:'M12 3v12M7 10l5 5 5-5M4 17v4h16v-4',upload:'M12 17V5M7 10l5-5 5 5M4 17v4h16v-4',lock:'M6 10h12v11H6zM8 10V7a4 4 0 0 1 8 0v3',share:'M8 12l8-7M8 12l8 7M8 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0M22 4a3 3 0 1 1-6 0 3 3 0 0 1 6 0M22 20a3 3 0 1 1-6 0 3 3 0 0 1 6 0',check:'M4 12l5 5L20 6',alert:'M12 8v5m0 3v1M12 3L2 21h20z',file:'M5 2h9l5 5v15H5zM14 2v6h5M8 12h8m-8 4h8'};
@@ -143,7 +144,7 @@ function vehicleForm(id){
  section('Interventi da fare',plannedMenu(v))+
  section('Note auto',area('Motore, anno, telaio o altre informazioni','notes',v?.notes))+'<p class="help">* Campi obbligatori. Inserisci i km senza punti o virgole. Aggiornali quando l’auto torna in officina.</p>','vehicle',id??'');syncFilters();
 }
-function checks(group,selected){return `<div class="checks">${group==='filtri'?'<label class="check all"><input type="checkbox" id="all-filters">Tutti i filtri della scheda</label>':''}${WORKS.filter(w=>w[2]===group).map(w=>`<label class="check"><input type="checkbox" name="works" value="${w[0]}" data-work-group="${group}" ${selected.includes(w[0])?'checked':''}>${esc(w[1])}</label>`).join('')}</div>`;}
+function checks(group,selected){return `<div class="checks">${group==='filtri'?'<label class="check all"><input type="checkbox" id="all-filters">Tutti i filtri della scheda</label>':''}${WORKS.filter(w=>w[2]===group&&selectableWorks.has(w[0])).map(w=>`<label class="check"><input type="checkbox" name="works" value="${w[0]}" data-work-group="${group}" ${selected.includes(w[0])?'checked':''}>${esc(w[1])}</label>`).join('')}</div>${legacyWorks(group,selected)}`;}
 function serviceForm(vehicleID,serviceID){
  const s=data().services.find(s=>s.id===serviceID),v=data().vehicles.find(v=>v.id===(s?.vehicleID??vehicleID));if(!v)throw Error('Auto non trovata.');
  servicePhoto=s?.photo??'';photoProcessing=false;photoGeneration++;
@@ -151,8 +152,8 @@ function serviceForm(vehicleID,serviceID){
  modal(s?'Modifica intervento':'Nuovo intervento',v.plate,
  (!s&&(v.plannedWorks?.length||v.plannedOther)?'<p class="notice">Sono proposti gli interventi da fare salvati nella scheda auto.</p><label class="check"><input type="checkbox" name="completePlanned" checked>Al salvataggio, rimuovi dal promemoria i lavori qui registrati.</label>':'')+
  section('Data e chilometraggio',`<div class="field-grid">${field('Data *','date',s?.date??today(),'date',`required max="${today()}"`)}${field('Km all’intervento *','kilometers',s?.kilometers??currentKM(data(),v),'text','required inputmode="numeric" pattern="[0-9]{1,7}" maxlength="7"')}</div>`)+
- section('Olio',checks('olio',selected)+`<div class="field-grid oil-fields" id="engine-fields" ${selected.includes('engineOil')?'':'hidden'}>${field('Tipo olio motore / marca / specifica','engineOil',s?.engineOil,'text','maxlength="300"')}${field('Litri olio motore','oilLiters',s?.oilLiters,'text','inputmode="decimal" maxlength="20"')}</div><div class="oil-fields" id="transmission-fields" ${selected.includes('transmissionOil')?'':'hidden'}>${field('Tipo olio trasmissione / specifica','transmissionOil',s?.transmissionOil,'text','maxlength="300"')}</div>`)+
- section('Filtri',checks('filtri',selected)+'<p class="help">Antipolline e climatizzatore riprendono le due voci della foto: su alcune auto sono lo stesso componente.</p>')+
+ section('Olio',checks('olio',selected)+`<div class="field-grid oil-fields" id="engine-fields" ${selected.includes('engineOil')?'':'hidden'}>${oilChoice(s?.engineOil)}${field('Litri olio motore','oilLiters',s?.oilLiters,'text','inputmode="decimal" maxlength="20"')}</div><div class="oil-fields" id="transmission-fields" ${selected.includes('transmissionOil')?'':'hidden'}>${field('Tipo olio trasmissione / specifica','transmissionOil',s?.transmissionOil,'text','maxlength="300"')}</div>`)+
+ section('Filtri',checks('filtri',selected))+
  section('Altri lavori',checks('lavori',selected)+`<div class="oil-fields">${area('Altri lavori / interventi personalizzati','otherWork',s?.otherWork??v.plannedOther,2000)}</div>`)+
  photoFields()+
  section('Ricambi, note e costo',`<div class="field-grid">${area('Marche / codici ricambi e filtri','parts',s?.parts,5000)}${area('Note intervento','notes',s?.notes)}${field('Costo totale € (facoltativo)','cost',s?.cost===null?'':s?.cost??'','text','inputmode="decimal" maxlength="13"')}</div>`)+
@@ -297,7 +298,7 @@ document.addEventListener('change',event=>{
  if(event.target.id==='parts-preset'&&event.target.value){$('#parts-query').value=event.target.value;updatePartsLinks();}
  if(event.target.id==='all-filters'){$('#modal').querySelectorAll('[data-work-group="filtri"]').forEach(x=>x.checked=event.target.checked);syncFilters();}
  if(event.target.matches('[data-work-group="filtri"]'))syncFilters();
- if(event.target.name==='works'){if($('#engine-fields'))$('#engine-fields').hidden=!$('#modal').querySelector('[value="engineOil"]').checked;if($('#transmission-fields'))$('#transmission-fields').hidden=!$('#modal').querySelector('[value="transmissionOil"]').checked;}
+ if(event.target.name==='works'){if($('#engine-fields'))$('#engine-fields').hidden=!$('#modal').querySelector('[value="engineOil"]').checked;if($('#transmission-fields'))$('#transmission-fields').hidden=!$('#modal').querySelector('[value="transmissionOil"]')?.checked;}
 });
 document.addEventListener('submit',async event=>{
  const form=event.target;if(!['modal-form','unlock-form'].includes(form.id))return;event.preventDefault();if(submitting)return;
@@ -373,4 +374,12 @@ function vehiclePhotoForm(id){
 function kilometersForm(id){
  const v=data().vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
  modal('Aggiorna km',v.plate,field('Km attuali *','kilometers',currentKM(data(),v),'text','required inputmode="numeric" pattern="[0-9]{1,7}" maxlength="7"')+'<p class="help">Inserisci i km senza punti o virgole. Le scadenze vengono aggiornate al salvataggio.</p>','update-km',id,'Salva km');
+}
+
+function oilChoice(value=''){
+ return `<label class="field"><span>Olio motore</span><select name="engineOil"><option value="">Scegli olio</option>${['5W-30','5W-40',...(value&&!['5W-30','5W-40'].includes(value)?[value]:[])].map(o=>`<option value="${esc(o)}" ${value===o?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
+}
+function legacyWorks(group,selected){
+ const old=WORKS.filter(w=>w[2]===group&&selected.includes(w[0])&&!selectableWorks.has(w[0]));
+ return old.length?`<details><summary>Lavori già salvati nella versione precedente</summary><div class="checks">${old.map(w=>`<label class="check"><input type="checkbox" name="works" value="${w[0]}" checked>${esc(w[1])}</label>`).join('')}</div></details>`:'';
 }
