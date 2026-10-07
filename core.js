@@ -142,7 +142,7 @@ export function validateDatabase(raw){
   const plate=normalizePlate(text(v,'plate',24));if(!plate)throw Error('Targa obbligatoria.');
   const plannedWorks=v.plannedWorks??[];if(!Array.isArray(plannedWorks)||new Set(plannedWorks).size!==plannedWorks.length||plannedWorks.some(w=>!workIDs.has(w)))throw Error('Interventi da fare non validi.');
   const plannedOther=v.plannedOther??'';if(typeof plannedOther!=='string'||plannedOther.length>2000)throw Error('Altri interventi da fare non validi.');
-  return {plannedWorks:[...plannedWorks],plannedOther,id:id(v.id),plate,make:text(v,'make',100),model:text(v,'model',100),owner:text(v,'owner',200),phone:text(v,'phone',80),kilometers:kmNumber(v.kilometers),notes:text(v,'notes',10000),createdAt:timestamp(v.createdAt)};
+  return {photo:validatedPhoto(v.photo),plannedWorks:[...plannedWorks],plannedOther,id:id(v.id),plate,make:text(v,'make',100),model:text(v,'model',100),owner:text(v,'owner',200),phone:text(v,'phone',80),kilometers:kmNumber(v.kilometers),notes:text(v,'notes',10000),createdAt:timestamp(v.createdAt)};
  });
  const vehicleIDs=new Set(vehicles.map(v=>v.id));
  if(vehicleIDs.size!==vehicles.length||new Set(vehicles.map(v=>v.plate)).size!==vehicles.length)throw Error('Auto o targhe duplicate: questa targa è già presente nell’archivio.');
@@ -160,7 +160,7 @@ export function validateDatabase(raw){
   const cost=s.cost??null;if(cost!==null&&(typeof cost!=='number'||!Number.isFinite(cost)||cost<0||cost>999999999||Math.abs(cost*100-Math.round(cost*100))>0.0001))throw Error('Costo non valido.');
   const oilLiters=text(s,'oilLiters',20);
   if(oilLiters){const liters=amount(oilLiters);if(liters===null||liters<=0||liters>100)throw Error('Quantità olio non valida.');}
-  const photo=s.photo??'';if(typeof photo!=='string'||photo.length>700000||(photo&&!/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(photo)))throw Error('Foto intervento non valida.');
+  const photo=validatedPhoto(s.photo);
   return {photo,id:id(s.id),vehicleID,date:s.date,kilometers,works:[...s.works],engineOil:text(s,'engineOil',300),oilLiters,transmissionOil:text(s,'transmissionOil',300),parts:text(s,'parts',5000),otherWork,notes:text(s,'notes',10000),cost,nextKilometers,nextDate,createdAt:timestamp(s.createdAt)};
  });
  if(new Set(services.map(s=>s.id)).size!==services.length)throw Error('Interventi duplicati nel backup.');
@@ -189,3 +189,5 @@ export function demoDatabase(){
  const s={id:newID(),vehicleID,date:today(),kilometers:85000,works:['engineOil','oilFilter','airFilter','inspection'],engineOil:'5W-30 • esempio, verificare specifiche veicolo',oilLiters:'3,5',transmissionOil:'',parts:'Ricambi di esempio',otherWork:'',notes:'Intervento dimostrativo.',cost:150,nextKilometers:100000,nextDate:null,createdAt:now};
  return {version:1,vehicles:[v],services:[s]};
 }
+
+function validatedPhoto(value){const photo=value??'';if(typeof photo!=='string'||photo.length>700000||(photo&&!/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(photo)))throw Error('Foto non valida.');return photo;}
