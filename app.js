@@ -129,7 +129,7 @@ function reportForm(id=''){
  modal('Scarica report',v?v.plate:'TUTTA L’OFFICINA',`<p class="muted">Esporta i lavori effettuati ${v?'su questa auto':'su tutte le auto'}. Lascia le date vuote per includere tutto lo storico.</p><div class="field-grid">${field('Dal (facoltativo)','from','','date')}${field('Al (facoltativo)','to','','date')}</div><label class="field"><span>Formato</span><select name="format"><option value="html">Report leggibile e stampabile (HTML)</option><option value="csv">Tabella per Excel / Numbers (CSV)</option></select></label><p class="help">Il report HTML si apre nel browser e può essere salvato in PDF dal menu Stampa. Include i costi registrati e il totale.</p>`,'export-report',id,'Scarica report');
 }
 function plannedMenu(v){
- return `<details class="planned-menu"><summary>Scegli gli interventi da fare</summary><p class="help">Seleziona una o più voci. Verranno salvate come promemoria nella scheda auto.</p>${section('Olio',checks('olio',v?.plannedWorks??[]))}${section('Filtri',checks('filtri',v?.plannedWorks??[]))}${section('Altri interventi',checks('lavori',v?.plannedWorks??[]))}${area('Altri lavori da fare','plannedOther',v?.plannedOther,2000)}</details>`;
+ return `<details class="planned-menu"><summary>Scegli gli interventi da fare</summary><p class="help">Seleziona una o più voci. Verranno salvate come promemoria nella scheda auto.</p>${section('Olio',checks('olio',v?.plannedWorks??[]))}${section('Filtri',checks('filtri',v?.plannedWorks??[]))}${section('Altri interventi',checks('lavori',v?.plannedWorks??[]))}</details>`;
 }
 function planForm(id){
  const v=data().vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
@@ -144,17 +144,17 @@ function vehicleForm(id){
  section('Interventi da fare',plannedMenu(v))+
  section('Note auto',area('Motore, anno, telaio o altre informazioni','notes',v?.notes))+'<p class="help">* Campi obbligatori. Inserisci i km senza punti o virgole. Aggiornali quando l’auto torna in officina.</p>','vehicle',id??'');syncFilters();
 }
-function checks(group,selected){return `<div class="checks">${group==='filtri'?'<label class="check all"><input type="checkbox" id="all-filters">Tutti i filtri della scheda</label>':''}${WORKS.filter(w=>w[2]===group&&selectableWorks.has(w[0])).map(w=>`<label class="check"><input type="checkbox" name="works" value="${w[0]}" data-work-group="${group}" ${selected.includes(w[0])?'checked':''}>${esc(w[1])}</label>`).join('')}</div>${legacyWorks(group,selected)}`;}
+function checks(group,selected){return `<div class="checks">${group==='filtri'?'<label class="check all"><input type="checkbox" id="all-filters">Tutti i filtri della scheda</label>':''}${WORKS.filter(w=>w[2]===group&&selectableWorks.has(w[0])).map(w=>`<label class="check"><input type="checkbox" name="works" value="${w[0]}" data-work-group="${group}" ${selected.includes(w[0])?'checked':''}>${esc(w[1])}</label>`).join('')}</div>`;}
 function serviceForm(vehicleID,serviceID){
  const s=data().services.find(s=>s.id===serviceID),v=data().vehicles.find(v=>v.id===(s?.vehicleID??vehicleID));if(!v)throw Error('Auto non trovata.');
  servicePhoto=s?.photo??'';photoProcessing=false;photoGeneration++;
- const selected=s?.works??v.plannedWorks??[];
+ const selected=(s?.works??v.plannedWorks??[]).filter(k=>selectableWorks.has(k));
  modal(s?'Modifica intervento':'Nuovo intervento',v.plate,
  (!s&&(v.plannedWorks?.length||v.plannedOther)?'<p class="notice">Sono proposti gli interventi da fare salvati nella scheda auto.</p><label class="check"><input type="checkbox" name="completePlanned" checked>Al salvataggio, rimuovi dal promemoria i lavori qui registrati.</label>':'')+
  section('Data e chilometraggio',`<div class="field-grid">${field('Data *','date',s?.date??today(),'date',`required max="${today()}"`)}${field('Km all’intervento *','kilometers',s?.kilometers??currentKM(data(),v),'text','required inputmode="numeric" pattern="[0-9]{1,7}" maxlength="7"')}</div>`)+
- section('Olio',checks('olio',selected)+`<div class="field-grid oil-fields" id="engine-fields" ${selected.includes('engineOil')?'':'hidden'}>${oilChoice(s?.engineOil)}${field('Litri olio motore','oilLiters',s?.oilLiters,'text','inputmode="decimal" maxlength="20"')}</div><div class="oil-fields" id="transmission-fields" ${selected.includes('transmissionOil')?'':'hidden'}>${field('Tipo olio trasmissione / specifica','transmissionOil',s?.transmissionOil,'text','maxlength="300"')}</div>`)+
+ section('Olio',checks('olio',selected)+`<div class="field-grid oil-fields" id="engine-fields" ${selected.includes('engineOil')?'':'hidden'}>${oilChoice(s?.engineOil)}${field('Litri olio motore','oilLiters',s?.oilLiters,'text','inputmode="decimal" maxlength="20"')}</div>`)+
  section('Filtri',checks('filtri',selected))+
- section('Altri lavori',checks('lavori',selected)+`<div class="oil-fields">${area('Altri lavori / interventi personalizzati','otherWork',s?.otherWork??v.plannedOther,2000)}</div>`)+
+ section('Altri lavori',checks('lavori',selected))+
  photoFields()+
  section('Ricambi, note e costo',`<div class="field-grid">${area('Marche / codici ricambi e filtri','parts',s?.parts,5000)}${area('Note intervento','notes',s?.notes)}${field('Costo totale € (facoltativo)','cost',s?.cost===null?'':s?.cost??'','text','inputmode="decimal" maxlength="13"')}</div>`)+
  section('Prossimo controllo',`<div class="field-grid">${field('A km (facoltativo)','nextKilometers',s?.nextKilometers??'','text','inputmode="numeric" maxlength="7"')}${field('Entro il (facoltativo)','nextDate',s?.nextDate??'','date')}</div><p class="help">La scadenza attiva è quella dell’ultimo intervento. Per mantenerne una precedente, riportala qui.</p>`),'service',s?.id??'');
@@ -204,7 +204,7 @@ async function submit(form){
  }
  if(kind==='plan-works'){
   const candidate=structuredClone(data()),v=candidate.vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
-  v.plannedWorks=fields.getAll('works');v.plannedOther=get('plannedOther');await store.commit(candidate);return 'Interventi da fare salvati.';
+  v.plannedWorks=[...fields.getAll('works'),...(v.plannedWorks??[]).filter(k=>!selectableWorks.has(k))];await store.commit(candidate);return 'Interventi da fare salvati.';
  }
  if(kind==='vehicle-photo'){
   if(photoProcessing)throw Error('Attendi la preparazione della foto.');
@@ -212,15 +212,15 @@ async function submit(form){
  }
  if(kind==='vehicle'){
   if(photoProcessing)throw Error('Attendi la preparazione della foto.');
-  const existing=data().vehicles.find(v=>v.id===id);const v={photo:servicePhoto,plannedWorks:fields.getAll('works'),plannedOther:get('plannedOther'),id:existing?.id??newID(),plate:normalizePlate(get('plate')),make:get('make'),model:get('model'),owner:get('owner'),phone:get('phone'),kilometers:integer(get('kilometers'),'Km attuali'),notes:get('notes'),createdAt:existing?.createdAt??new Date().toISOString()};
+  const existing=data().vehicles.find(v=>v.id===id);const v={photo:servicePhoto,plannedWorks:[...fields.getAll('works'),...(existing?.plannedWorks??[]).filter(k=>!selectableWorks.has(k))],plannedOther:existing?.plannedOther??'',id:existing?.id??newID(),plate:normalizePlate(get('plate')),make:get('make'),model:get('model'),owner:get('owner'),phone:get('phone'),kilometers:integer(get('kilometers'),'Km attuali'),notes:get('notes'),createdAt:existing?.createdAt??new Date().toISOString()};
   if(data().services.some(s=>s.vehicleID===v.id&&s.kilometers>v.kilometers))throw Error('I km attuali non possono essere inferiori a quelli già registrati negli interventi.');
   const candidate=structuredClone(data());candidate.vehicles=candidate.vehicles.filter(x=>x.id!==v.id);candidate.vehicles.push(v);await store.commit(candidate);
   selectedVehicle=v.id;selectedService=null;return 'Auto salvata.';
  }
  if(kind==='service'){
-  const old=data().services.find(s=>s.id===id),works=fields.getAll('works');
+  const old=data().services.find(s=>s.id===id),works=[...fields.getAll('works'),...(old?.works??[]).filter(k=>!selectableWorks.has(k))];
   if(photoProcessing)throw Error('Attendi la preparazione della foto.');
- const s={photo:servicePhoto,id:old?.id??newID(),vehicleID:$('#modal').dataset.vehicle,date:get('date'),kilometers:integer(get('kilometers'),'Km all’intervento'),works,engineOil:works.includes('engineOil')?get('engineOil'):'',oilLiters:works.includes('engineOil')?get('oilLiters'):'',transmissionOil:works.includes('transmissionOil')?get('transmissionOil'):'',parts:get('parts'),otherWork:get('otherWork'),notes:get('notes'),cost:amount(get('cost')),nextKilometers:get('nextKilometers')?integer(get('nextKilometers'),'Prossimo controllo'):null,nextDate:get('nextDate')||null,createdAt:old?.createdAt??new Date().toISOString()};
+ const s={photo:servicePhoto,id:old?.id??newID(),vehicleID:$('#modal').dataset.vehicle,date:get('date'),kilometers:integer(get('kilometers'),'Km all’intervento'),works,engineOil:works.includes('engineOil')?get('engineOil'):'',oilLiters:works.includes('engineOil')?get('oilLiters'):'',transmissionOil:old?.transmissionOil??'',parts:get('parts'),otherWork:old?.otherWork??'',notes:get('notes'),cost:amount(get('cost')),nextKilometers:get('nextKilometers')?integer(get('nextKilometers'),'Prossimo controllo'):null,nextDate:get('nextDate')||null,createdAt:old?.createdAt??new Date().toISOString()};
   if(s.date>today())throw Error('La data di un lavoro eseguito non può essere futura.');validateChronology(data(),s);
   const candidate=structuredClone(data());candidate.services=candidate.services.filter(x=>x.id!==s.id);candidate.services.push(s);
   if(!old&&fields.has('completePlanned')){const v=candidate.vehicles.find(v=>v.id===s.vehicleID);v.plannedWorks=(v.plannedWorks??[]).filter(k=>!s.works.includes(k));if(v.plannedOther?.trim()===s.otherWork.trim())v.plannedOther='';}
@@ -378,8 +378,4 @@ function kilometersForm(id){
 
 function oilChoice(value=''){
  return `<label class="field"><span>Olio motore</span><select name="engineOil"><option value="">Scegli olio</option>${['5W-30','5W-40',...(value&&!['5W-30','5W-40'].includes(value)?[value]:[])].map(o=>`<option value="${esc(o)}" ${value===o?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
-}
-function legacyWorks(group,selected){
- const old=WORKS.filter(w=>w[2]===group&&selected.includes(w[0])&&!selectableWorks.has(w[0]));
- return old.length?`<details><summary>Lavori già salvati nella versione precedente</summary><div class="checks">${old.map(w=>`<label class="check"><input type="checkbox" name="works" value="${w[0]}" checked>${esc(w[1])}</label>`).join('')}</div></details>`:'';
 }
