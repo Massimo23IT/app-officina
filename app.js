@@ -1,8 +1,8 @@
 import {reportData,reportCSV,reportHTML} from './reports.js';
-import {WORKS,MAX_IMPORT_BYTES,newID,emptyDatabase,normalizePlate,integer,amount,today,currentKM,latest,due,sortedServices,serviceTitle,validateDatabase,validateChronology,parseBackup,backupObject,demoDatabase} from './core.js';
+import {CATALOG,priceTotal,WORKS,MAX_IMPORT_BYTES,newID,emptyDatabase,normalizePlate,integer,amount,today,currentKM,latest,due,sortedServices,serviceTitle,validateDatabase,validateChronology,parseBackup,backupObject,demoDatabase} from './core.js';
 import {LocalStore} from './storage.js';
 import {newSession,seal,unseal} from './crypto.js';
-const selectableWorks=new Set(['engineOil','oilFilter','airFilter','pollenFilter','timing','frontShocks','rearShocks','frontBrakes','rearBrakes','frontLights','rearLights','brakeDiscs']);
+const selectableWorks=new Set(CATALOG.map(w=>w[0]));
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const paths={car:'M3 10l2-6h14l2 6M3 10h18v9H3zM6 19v2m12-2v2M6 14h2m8 0h2',wrench:'M14 4a6 6 0 0 0-7 7l-4 4a3 3 0 0 0 4 4l4-4a6 6 0 0 0 7-7l-4 3-3-3z',clock:'M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',shield:'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6',plus:'M12 5v14M5 12h14',search:'M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',back:'M15 5l-7 7 7 7',arrow:'M9 5l7 7-7 7',edit:'M15 4l5 5M4 20l1-5L16 4a2 2 0 0 1 4 4L9 19z',trash:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',close:'M6 6l12 12M18 6L6 18',download:'M12 3v12M7 10l5 5 5-5M4 17v4h16v-4',upload:'M12 17V5M7 10l5-5 5 5M4 17v4h16v-4',lock:'M6 10h12v11H6zM8 10V7a4 4 0 0 1 8 0v3',share:'M8 12l8-7M8 12l8 7M8 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0M22 4a3 3 0 1 1-6 0 3 3 0 0 1 6 0M22 20a3 3 0 1 1-6 0 3 3 0 0 1 6 0',check:'M4 12l5 5L20 6',alert:'M12 8v5m0 3v1M12 3L2 21h20z',file:'M5 2h9l5 5v15H5zM14 2v6h5M8 12h8m-8 4h8'};
@@ -64,8 +64,8 @@ function vehiclePage(v){
  const jobs=sortedServices(data(),v.id);
  return `<button class="back" data-action="back">${icon('back')}Le tue auto</button>`+heading(v.plate,name(v),`<div class="heading-actions">${button('Scarica report','export-report','download','secondary',`data-id="${v.id}"`)}${button('Modifica','edit-vehicle','edit','secondary',`data-id="${v.id}"`)}</div>`)+
  `<div class="detail-grid"><section class="panel"><p class="eyebrow">SCHEDA AUTO</p>${v.photo?`<figure class="vehicle-photo"><img src="${esc(v.photo)}" alt="Foto principale dell’auto ${esc(v.plate)}"></figure>`:''}<div class="detail-data">${info('Chilometraggio attuale',km(currentKM(data(),v)))}${info('Cliente',v.owner)}${info('Marca / modello',name(v))}${info('Telefono',v.phone)}</div>${v.notes?`<p class="help preline">${esc(v.notes)}</p>`:''}<div class="button-row">${button('Aggiorna km','update-km','edit','secondary',`data-id="${v.id}"`)}${button(v.photo?'Modifica foto':'Aggiungi foto','vehicle-photo','car','secondary',`data-id="${v.id}"`)}${button('Cerca auto dalla targa','edit-vehicle','search','secondary',`data-id="${v.id}"`)}</div></section><section class="panel"><p class="eyebrow">PROSSIMO CONTROLLO</p>${nextCard(v)}<div class="button-row">${button('Indica prossimo controllo',latest(data(),v)?'edit-service':'new-service','clock','secondary',`data-id="${latest(data(),v)?.id??v.id}"`)}</div></section></div>
- <section class="panel planned-panel"><div class="section-title"><div><p class="eyebrow">PROMEMORIA AUTO</p><h2>Interventi da fare</h2></div>${button('Scegli interventi','plan-works','wrench','secondary',`data-id="${v.id}"`)}</div>${v.plannedWorks?.length?`<div class="work-tags">${v.plannedWorks.map(k=>`<span>${esc(WORKS.find(w=>w[0]===k)[1])}</span>`).join('')}</div>`:''}${v.plannedOther?`<p class="preline">${esc(v.plannedOther)}</p>`:''}${!v.plannedWorks?.length&&!v.plannedOther?'<p class="muted">Scegli olio, filtri, freni e gli altri lavori da effettuare su questa auto.</p>':'<p class="help">Le voci saranno proposte quando registri un nuovo intervento.</p>'}</section>
- ${partsSearch(v)}
+ <section class="panel planned-panel"><div class="section-title"><div><p class="eyebrow">PROMEMORIA AUTO</p><h2>Interventi da fare</h2></div>${button('Scegli interventi','plan-works','wrench','secondary',`data-id="${v.id}"`)}</div>${v.plannedWorks?.length?`<div class="work-tags">${v.plannedWorks.map(k=>`<span>${esc(workLabel(k))}</span>`).join('')}</div>`:''}${v.plannedOther?`<p class="preline">${esc(v.plannedOther)}</p>`:''}${!v.plannedWorks?.length&&!v.plannedOther?'<p class="muted">Scegli olio, filtri, freni e gli altri lavori da effettuare su questa auto.</p>':'<p class="help">Le voci saranno proposte quando registri un nuovo intervento.</p>'}</section>
+ ${v.plannedWorks?.length?`<section class="panel"><h2>Prezzi lavori da fare</h2>${priceDetails(v.plannedPrices,v.plannedWorks)}</section>`:''}${partsSearch(v)}
  <div class="section-title"><h2>Storico interventi <small>(${jobs.length})</small></h2>${button('Registra intervento','new-service','plus','',`data-id="${v.id}"`)}</div>
  <div class="services">${jobs.length?jobs.map(s=>serviceCard(s)).join(''):empty('wrench','Nessun lavoro registrato','Registra il primo intervento per costruire lo storico di questa auto.')}</div>
  <div class="footer-note">${button('Elimina auto e storico','delete-vehicle','trash','secondary',`data-id="${v.id}"`)}</div>`;
@@ -76,7 +76,7 @@ function servicePage(s){
  `<section class="panel"><p class="eyebrow">INTERVENTO COMPLETATO</p><div class="detail-data">${info('Auto',`${v?.plate??''} · ${v?name(v):''}`)}${info('Cliente',v?.owner)}${info('Data',date(s.date))}${info('Chilometraggio',km(s.kilometers))}${info('Costo',s.cost===null?'Non indicato':money(s.cost))}</div>
  ${s.photo?`<figure class="vehicle-photo"><img src="${esc(s.photo)}" alt="Foto del veicolo per questo intervento"></figure>`:''}<div class="section-title"><h2>Lavori eseguiti</h2></div><div class="work-tags">${s.works.map(k=>`<span>${esc(WORKS.find(w=>w[0]===k)[1])}</span>`).join('')}</div>${s.otherWork?`<p class="preline">${esc(s.otherWork)}</p>`:''}
  <div class="detail-data">${s.engineOil?info('Olio motore / specifica',s.engineOil):''}${s.oilLiters?info('Litri olio motore',s.oilLiters):''}${s.transmissionOil?info('Olio trasmissione',s.transmissionOil):''}${s.parts?info('Ricambi e filtri: marche / codici',s.parts):''}</div>
- ${s.notes?`<div class="section-title"><h2>Note</h2></div><p class="preline">${esc(s.notes)}</p>`:''}
+ ${priceDetails(s.workPrices,s.works)}${s.notes?`<div class="section-title"><h2>Note</h2></div><p class="preline">${esc(s.notes)}</p>`:''}
  ${s.nextKilometers!==null||s.nextDate?`<div class="section-title"><h2>Prossimo controllo</h2></div><div class="detail-data">${s.nextKilometers!==null?info('A km',km(s.nextKilometers)):''}${s.nextDate?info('Entro il',date(s.nextDate)):''}</div>`:''}
  <div class="section-title button-row">${button('Condividi scheda','share-service','share','',`data-id="${s.id}"`)}${button('Scarica testo','download-service','download','secondary',`data-id="${s.id}"`)}</div></section>
  <p class="footer-note">${button('Elimina intervento','delete-service','trash','secondary',`data-id="${s.id}"`)}</p>`;
@@ -129,11 +129,12 @@ function reportForm(id=''){
  modal('Scarica report',v?v.plate:'TUTTA L’OFFICINA',`<p class="muted">Esporta i lavori effettuati ${v?'su questa auto':'su tutte le auto'}. Lascia le date vuote per includere tutto lo storico.</p><div class="field-grid">${field('Dal (facoltativo)','from','','date')}${field('Al (facoltativo)','to','','date')}</div><label class="field"><span>Formato</span><select name="format"><option value="html">Report leggibile e stampabile (HTML)</option><option value="csv">Tabella per Excel / Numbers (CSV)</option></select></label><p class="help">Il report HTML si apre nel browser e può essere salvato in PDF dal menu Stampa. Include i costi registrati e il totale.</p>`,'export-report',id,'Scarica report');
 }
 function plannedMenu(v){
- return `<details class="planned-menu"><summary>Scegli gli interventi da fare</summary><p class="help">Seleziona una o più voci. Verranno salvate come promemoria nella scheda auto.</p>${section('Olio',checks('olio',v?.plannedWorks??[]))}${section('Filtri',checks('filtri',v?.plannedWorks??[]))}${section('Altri interventi',checks('lavori',v?.plannedWorks??[]))}</details>`;
+ return '<p class="help">Seleziona i lavori da fare e inserisci il prezzo di ciascuno.</p>'+workMenu(v?.plannedWorks??[],v?.plannedPrices??{})+priceSummary();
 }
+
 function planForm(id){
  const v=data().vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
- modal('Interventi da fare',v.plate,plannedMenu(v),'plan-works',id,'Salva interventi');$('#modal details').open=true;syncFilters();
+ modal('Interventi da fare',v.plate,plannedMenu(v),'plan-works',id,'Salva interventi');syncPrices();
 }
 function vehicleForm(id){
  const v=data().vehicles.find(v=>v.id===id);servicePhoto=v?.photo??'';photoProcessing=false;photoGeneration++;modal(v?'Modifica auto':'Nuova auto','SCHEDA AUTO',
@@ -142,9 +143,32 @@ function vehicleForm(id){
  photoFields()+
  section('Cliente',`<div class="field-grid">${field('Nome / azienda','owner',v?.owner,'text','maxlength="200" autocomplete="name"')}${field('Telefono','phone',v?.phone,'tel','maxlength="80" autocomplete="tel"')}</div>`)+
  section('Interventi da fare',plannedMenu(v))+
- section('Note auto',area('Motore, anno, telaio o altre informazioni','notes',v?.notes))+'<p class="help">* Campi obbligatori. Inserisci i km senza punti o virgole. Aggiornali quando l’auto torna in officina.</p>','vehicle',id??'');syncFilters();
+ section('Note auto',area('Motore, anno, telaio o altre informazioni','notes',v?.notes))+'<p class="help">* Campi obbligatori. Inserisci i km senza punti o virgole. Aggiornali quando l’auto torna in officina.</p>','vehicle',id??'');syncPrices();
 }
-function checks(group,selected){return `<div class="checks">${group==='filtri'?'<label class="check all"><input type="checkbox" id="all-filters">Tutti i filtri della scheda</label>':''}${WORKS.filter(w=>w[2]===group&&selectableWorks.has(w[0])).map(w=>`<label class="check"><input type="checkbox" name="works" value="${w[0]}" data-work-group="${group}" ${selected.includes(w[0])?'checked':''}>${esc(w[1])}</label>`).join('')}</div>`;}
+
+function workMenu(selected,prices={}){
+ return [['filtri','Filtri'],['olio','Olio'],['motore','Motore'],['freni','Freni'],['altro','Altro'],['diagnosi','Diagnosi']].map(([group,label])=>section(label,`<div class="priced-works">${CATALOG.filter(w=>w[2]===group).map(([id,title])=>`<div class="priced-work"><label class="check"><input type="checkbox" name="works" value="${id}" ${selected.includes(id)?'checked':''}>${esc(title)}</label><label class="work-price"><span>Prezzo €</span><input name="price-${id}" data-work-price="${id}" type="text" inputmode="decimal" maxlength="13" aria-label="Prezzo ${esc(title)}" value="${esc(prices[id]??'')}" ${selected.includes(id)?'':'disabled'} placeholder="0,00"></label></div>`).join('')}</div>`)).join('');
+}
+function priceSummary(){return '<div class="price-total" aria-live="polite"><span>Totale prezzi inseriti</span><strong id="work-total">€ 0,00</strong><p id="work-price-status" class="help"></p></div>';}
+function readPrices(form,works){
+ return Object.fromEntries(works.filter(k=>selectableWorks.has(k)).flatMap(k=>{
+  const value=form.elements.namedItem('price-'+k)?.value?.trim()??'';
+  return value?[ [k,amount(value)] ]:[];
+ }));
+}
+function syncPrices(){
+ const form=$('#modal-form');if(!form||!$('#work-total'))return;
+ const works=[...form.querySelectorAll('[name=works]:checked')].map(x=>x.value);
+ for(const input of form.querySelectorAll('[data-work-price]'))input.disabled=!works.includes(input.dataset.workPrice);
+ try{
+  const prices=readPrices(form,works),total=priceTotal(prices)??0,missing=works.length-Object.keys(prices).length;
+  $('#work-total').textContent=money(total);
+  $('#work-price-status').textContent=!works.length?'Seleziona almeno un lavoro.':missing?`${missing} voci senza prezzo. Il totale include solo i prezzi inseriti.`:'Tutti i lavori selezionati hanno un prezzo.';
+ }catch(error){$('#work-total').textContent='—';$('#work-price-status').textContent=error.message;}
+}
+document.addEventListener('input',e=>{if(e.target.matches('[data-work-price]'))syncPrices();});
+document.addEventListener('change',e=>{if(e.target.name==='works')syncPrices();});
+
 function serviceForm(vehicleID,serviceID){
  const s=data().services.find(s=>s.id===serviceID),v=data().vehicles.find(v=>v.id===(s?.vehicleID??vehicleID));if(!v)throw Error('Auto non trovata.');
  servicePhoto=s?.photo??'';photoProcessing=false;photoGeneration++;
@@ -152,13 +176,13 @@ function serviceForm(vehicleID,serviceID){
  modal(s?'Modifica intervento':'Nuovo intervento',v.plate,
  (!s&&(v.plannedWorks?.length||v.plannedOther)?'<p class="notice">Sono proposti gli interventi da fare salvati nella scheda auto.</p><label class="check"><input type="checkbox" name="completePlanned" checked>Al salvataggio, rimuovi dal promemoria i lavori qui registrati.</label>':'')+
  section('Data e chilometraggio',`<div class="field-grid">${field('Data *','date',s?.date??today(),'date',`required max="${today()}"`)}${field('Km all’intervento *','kilometers',s?.kilometers??currentKM(data(),v),'text','required inputmode="numeric" pattern="[0-9]{1,7}" maxlength="7"')}</div>`)+
- section('Olio',checks('olio',selected)+`<div class="field-grid oil-fields" id="engine-fields" ${selected.includes('engineOil')?'':'hidden'}>${oilChoice(s?.engineOil)}${field('Litri olio motore','oilLiters',s?.oilLiters,'text','inputmode="decimal" maxlength="20"')}</div>`)+
- section('Filtri',checks('filtri',selected))+
- section('Altri lavori',checks('lavori',selected))+
+ workMenu(selected,s?.workPrices??v.plannedPrices??{})+priceSummary()+
+ (s?.cost!==null&&s?.cost!==undefined&&!Object.keys(s.workPrices??{}).length?`<p class="help">Costo precedente: ${money(s.cost)}. Inserendo i prezzi per voce verrà sostituito dal totale automatico.</p>`:'')+
+ section('Dettagli olio',`<div class="field-grid oil-fields" id="engine-fields" ${selected.includes('engineOil')?'':'hidden'}>${oilChoice(s?.engineOil)}${field('Litri olio motore','oilLiters',s?.oilLiters,'text','inputmode="decimal" maxlength="20"')}</div><div class="oil-fields" id="transmission-fields" ${selected.includes('transmissionOil')?'':'hidden'}>${field('Tipo olio cambio','transmissionOil',s?.transmissionOil,'text','maxlength="300"')}</div>`)+
  photoFields()+
- section('Ricambi, note e costo',`<div class="field-grid">${area('Marche / codici ricambi e filtri','parts',s?.parts,5000)}${area('Note intervento','notes',s?.notes)}${field('Costo totale € (facoltativo)','cost',s?.cost===null?'':s?.cost??'','text','inputmode="decimal" maxlength="13"')}</div>`)+
+ section('Ricambi e note',`<div class="field-grid">${area('Marche / codici ricambi e filtri','parts',s?.parts,5000)}${area('Note intervento','notes',s?.notes)}</div>`)+
  section('Prossimo controllo',`<div class="field-grid">${field('A km (facoltativo)','nextKilometers',s?.nextKilometers??'','text','inputmode="numeric" maxlength="7"')}${field('Entro il (facoltativo)','nextDate',s?.nextDate??'','date')}</div><p class="help">La scadenza attiva è quella dell’ultimo intervento. Per mantenerne una precedente, riportala qui.</p>`),'service',s?.id??'');
- $('#modal').dataset.vehicle=v.id;syncFilters();
+ $('#modal').dataset.vehicle=v.id;syncPrices();
 }
 function syncFilters(){const items=[...$('#modal').querySelectorAll('[data-work-group="filtri"]')];if($('#all-filters')){$('#all-filters').checked=items.every(x=>x.checked);$('#all-filters').indeterminate=items.some(x=>x.checked)&&!items.every(x=>x.checked);}}
 function passwordForm(kind){
@@ -204,7 +228,7 @@ async function submit(form){
  }
  if(kind==='plan-works'){
   const candidate=structuredClone(data()),v=candidate.vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
-  v.plannedWorks=[...fields.getAll('works'),...(v.plannedWorks??[]).filter(k=>!selectableWorks.has(k))];await store.commit(candidate);return 'Interventi da fare salvati.';
+  v.plannedWorks=[...fields.getAll('works'),...(v.plannedWorks??[]).filter(k=>!selectableWorks.has(k))];v.plannedPrices={...Object.fromEntries(Object.entries(v.plannedPrices??{}).filter(([k])=>v.plannedWorks.includes(k)&&!selectableWorks.has(k))),...readPrices(form,fields.getAll('works'))};await store.commit(candidate);return 'Interventi da fare salvati.';
  }
  if(kind==='vehicle-photo'){
   if(photoProcessing)throw Error('Attendi la preparazione della foto.');
@@ -212,7 +236,7 @@ async function submit(form){
  }
  if(kind==='vehicle'){
   if(photoProcessing)throw Error('Attendi la preparazione della foto.');
-  const existing=data().vehicles.find(v=>v.id===id);const v={photo:servicePhoto,plannedWorks:[...fields.getAll('works'),...(existing?.plannedWorks??[]).filter(k=>!selectableWorks.has(k))],plannedOther:existing?.plannedOther??'',id:existing?.id??newID(),plate:normalizePlate(get('plate')),make:get('make'),model:get('model'),owner:get('owner'),phone:get('phone'),kilometers:integer(get('kilometers'),'Km attuali'),notes:get('notes'),createdAt:existing?.createdAt??new Date().toISOString()};
+  const existing=data().vehicles.find(v=>v.id===id);const v={plannedPrices:{...Object.fromEntries(Object.entries(existing?.plannedPrices??{}).filter(([k])=>(existing?.plannedWorks??[]).includes(k)&&!selectableWorks.has(k))),...readPrices(form,fields.getAll('works'))},photo:servicePhoto,plannedWorks:[...fields.getAll('works'),...(existing?.plannedWorks??[]).filter(k=>!selectableWorks.has(k))],plannedOther:existing?.plannedOther??'',id:existing?.id??newID(),plate:normalizePlate(get('plate')),make:get('make'),model:get('model'),owner:get('owner'),phone:get('phone'),kilometers:integer(get('kilometers'),'Km attuali'),notes:get('notes'),createdAt:existing?.createdAt??new Date().toISOString()};
   if(data().services.some(s=>s.vehicleID===v.id&&s.kilometers>v.kilometers))throw Error('I km attuali non possono essere inferiori a quelli già registrati negli interventi.');
   const candidate=structuredClone(data());candidate.vehicles=candidate.vehicles.filter(x=>x.id!==v.id);candidate.vehicles.push(v);await store.commit(candidate);
   selectedVehicle=v.id;selectedService=null;return 'Auto salvata.';
@@ -220,10 +244,11 @@ async function submit(form){
  if(kind==='service'){
   const old=data().services.find(s=>s.id===id),works=[...fields.getAll('works'),...(old?.works??[]).filter(k=>!selectableWorks.has(k))];
   if(photoProcessing)throw Error('Attendi la preparazione della foto.');
- const s={photo:servicePhoto,id:old?.id??newID(),vehicleID:$('#modal').dataset.vehicle,date:get('date'),kilometers:integer(get('kilometers'),'Km all’intervento'),works,engineOil:works.includes('engineOil')?get('engineOil'):'',oilLiters:works.includes('engineOil')?get('oilLiters'):'',transmissionOil:old?.transmissionOil??'',parts:get('parts'),otherWork:old?.otherWork??'',notes:get('notes'),cost:amount(get('cost')),nextKilometers:get('nextKilometers')?integer(get('nextKilometers'),'Prossimo controllo'):null,nextDate:get('nextDate')||null,createdAt:old?.createdAt??new Date().toISOString()};
+ const workPrices={...Object.fromEntries(Object.entries(old?.workPrices??{}).filter(([k])=>works.includes(k)&&!selectableWorks.has(k))),...readPrices(form,works)};
+ const s={workPrices,photo:servicePhoto,id:old?.id??newID(),vehicleID:$('#modal').dataset.vehicle,date:get('date'),kilometers:integer(get('kilometers'),'Km all’intervento'),works,engineOil:works.includes('engineOil')?get('engineOil'):'',oilLiters:works.includes('engineOil')?get('oilLiters'):'',transmissionOil:works.includes('transmissionOil')?get('transmissionOil'):'',parts:get('parts'),otherWork:old?.otherWork??'',notes:get('notes'),cost:priceTotal(workPrices)??(Object.keys(old?.workPrices??{}).length?null:old?.cost??null),nextKilometers:get('nextKilometers')?integer(get('nextKilometers'),'Prossimo controllo'):null,nextDate:get('nextDate')||null,createdAt:old?.createdAt??new Date().toISOString()};
   if(s.date>today())throw Error('La data di un lavoro eseguito non può essere futura.');validateChronology(data(),s);
   const candidate=structuredClone(data());candidate.services=candidate.services.filter(x=>x.id!==s.id);candidate.services.push(s);
-  if(!old&&fields.has('completePlanned')){const v=candidate.vehicles.find(v=>v.id===s.vehicleID);v.plannedWorks=(v.plannedWorks??[]).filter(k=>!s.works.includes(k));if(v.plannedOther?.trim()===s.otherWork.trim())v.plannedOther='';}
+  if(!old&&fields.has('completePlanned')){const v=candidate.vehicles.find(v=>v.id===s.vehicleID);v.plannedWorks=(v.plannedWorks??[]).filter(k=>!s.works.includes(k));v.plannedPrices=Object.fromEntries(Object.entries(v.plannedPrices??{}).filter(([k])=>v.plannedWorks.includes(k)));if(v.plannedOther?.trim()===s.otherWork.trim())v.plannedOther='';}
   await store.commit(candidate);
   selectedVehicle=s.vehicleID;selectedService=s.id;return 'Intervento salvato.';
  }
@@ -379,3 +404,11 @@ function kilometersForm(id){
 function oilChoice(value=''){
  return `<label class="field"><span>Olio motore</span><select name="engineOil"><option value="">Scegli olio</option>${['5W-30','5W-40',...(value&&!['5W-30','5W-40'].includes(value)?[value]:[])].map(o=>`<option value="${esc(o)}" ${value===o?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
 }
+
+function priceDetails(prices={},works=[]){
+ const entries=Object.entries(prices??{});
+ if(!entries.length)return '<p class="help">Prezzi non inseriti.</p>';
+ return `<dl class="detail-data">${entries.map(([k,p])=>`<div><dt>${esc(CATALOG.find(w=>w[0]===k)?.[1]??WORKS.find(w=>w[0]===k)?.[1])}</dt><dd>${money(p)}</dd></div>`).join('')}</dl><p><strong>Totale: ${money(priceTotal(prices))}</strong></p>${works.length>entries.length?'<p class="help">Il totale comprende solo le voci con prezzo.</p>':''}`;
+}
+
+function workLabel(k){return CATALOG.find(w=>w[0]===k)?.[1]??WORKS.find(w=>w[0]===k)?.[1]??k;}
