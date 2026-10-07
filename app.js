@@ -62,7 +62,7 @@ function updatePartsLinks(){
 function vehiclePage(v){
  const jobs=sortedServices(data(),v.id);
  return `<button class="back" data-action="back">${icon('back')}Le tue auto</button>`+heading(v.plate,name(v),`<div class="heading-actions">${button('Scarica report','export-report','download','secondary',`data-id="${v.id}"`)}${button('Modifica','edit-vehicle','edit','secondary',`data-id="${v.id}"`)}</div>`)+
- `<div class="detail-grid"><section class="panel"><p class="eyebrow">SCHEDA AUTO</p>${v.photo?`<figure class="vehicle-photo"><img src="${esc(v.photo)}" alt="Foto principale dell’auto ${esc(v.plate)}"></figure>`:''}<div class="detail-data">${info('Chilometraggio attuale',km(currentKM(data(),v)))}${info('Cliente',v.owner)}${info('Marca / modello',name(v))}${info('Telefono',v.phone)}</div>${v.notes?`<p class="help preline">${esc(v.notes)}</p>`:''}<div class="button-row">${button(v.photo?'Modifica foto':'Aggiungi foto','vehicle-photo','car','secondary',`data-id="${v.id}"`)}${button('Cerca auto dalla targa','edit-vehicle','search','secondary',`data-id="${v.id}"`)}</div></section><section class="panel"><p class="eyebrow">PROSSIMO CONTROLLO</p>${nextCard(v)}</section></div>
+ `<div class="detail-grid"><section class="panel"><p class="eyebrow">SCHEDA AUTO</p>${v.photo?`<figure class="vehicle-photo"><img src="${esc(v.photo)}" alt="Foto principale dell’auto ${esc(v.plate)}"></figure>`:''}<div class="detail-data">${info('Chilometraggio attuale',km(currentKM(data(),v)))}${info('Cliente',v.owner)}${info('Marca / modello',name(v))}${info('Telefono',v.phone)}</div>${v.notes?`<p class="help preline">${esc(v.notes)}</p>`:''}<div class="button-row">${button('Aggiorna km','update-km','edit','secondary',`data-id="${v.id}"`)}${button(v.photo?'Modifica foto':'Aggiungi foto','vehicle-photo','car','secondary',`data-id="${v.id}"`)}${button('Cerca auto dalla targa','edit-vehicle','search','secondary',`data-id="${v.id}"`)}</div></section><section class="panel"><p class="eyebrow">PROSSIMO CONTROLLO</p>${nextCard(v)}<div class="button-row">${button('Indica prossimo controllo',latest(data(),v)?'edit-service':'new-service','clock','secondary',`data-id="${latest(data(),v)?.id??v.id}"`)}</div></section></div>
  <section class="panel planned-panel"><div class="section-title"><div><p class="eyebrow">PROMEMORIA AUTO</p><h2>Interventi da fare</h2></div>${button('Scegli interventi','plan-works','wrench','secondary',`data-id="${v.id}"`)}</div>${v.plannedWorks?.length?`<div class="work-tags">${v.plannedWorks.map(k=>`<span>${esc(WORKS.find(w=>w[0]===k)[1])}</span>`).join('')}</div>`:''}${v.plannedOther?`<p class="preline">${esc(v.plannedOther)}</p>`:''}${!v.plannedWorks?.length&&!v.plannedOther?'<p class="muted">Scegli olio, filtri, freni e gli altri lavori da effettuare su questa auto.</p>':'<p class="help">Le voci saranno proposte quando registri un nuovo intervento.</p>'}</section>
  ${partsSearch(v)}
  <div class="section-title"><h2>Storico interventi <small>(${jobs.length})</small></h2>${button('Registra intervento','new-service','plus','',`data-id="${v.id}"`)}</div>
@@ -81,10 +81,11 @@ function servicePage(s){
  <p class="footer-note">${button('Elimina intervento','delete-service','trash','secondary',`data-id="${s.id}"`)}</p>`;
 }
 function controlsPage(){
- const db=data(),vehicles=db.vehicles.filter(v=>{const s=latest(db,v);return s&&(s.nextKilometers!==null||s.nextDate!==null);}).sort((a,b)=>Number(due(db,b))-Number(due(db,a))||(latest(db,a).nextDate??'9999').localeCompare(latest(db,b).nextDate??'9999')||a.plate.localeCompare(b.plate));
- return heading('Prossimi controlli','Scadenze indicate nell’ultimo intervento di ogni auto.')+`<div class="notice">${icon('clock')} I controlli in km dipendono dal chilometraggio aggiornato nella scheda auto. Le scadenze sono mostrate qui: non vengono inviate notifiche.</div>`+
- (vehicles.length?`<div class="cards">${vehicles.map(v=>`<article class="panel"><button class="vehicle-open" data-action="open-vehicle" data-id="${v.id}"><div class="card-top">${plate(v)}${icon('arrow')}</div><h3>${esc(name(v))}</h3></button>${nextCard(v)}</article>`).join('')}</div>`:empty('clock','Nessun controllo previsto','Indica il prossimo controllo in km o per data quando registri un intervento.'));
+ const db=data(),vehicles=db.vehicles.filter(v=>{const s=latest(db,v);return (s&&(s.nextKilometers!==null||s.nextDate!==null))||v.plannedWorks?.length||v.plannedOther;}).sort((a,b)=>Number(due(db,b))-Number(due(db,a))||(latest(db,a)?.nextDate??'9999').localeCompare(latest(db,b)?.nextDate??'9999')||a.plate.localeCompare(b.plate));
+ return heading('Controlli e lavori programmati','Scadenze e interventi da fare, per ogni auto.')+`<div class="notice">${icon('clock')} Aggiorna i km quando l’auto torna in officina. Un controllo è da effettuare quando raggiunge la data o i km indicati.</div>`+
+ (vehicles.length?`<div class="cards">${vehicles.map(v=>`<article class="panel"><button class="vehicle-open" data-action="open-vehicle" data-id="${v.id}"><div class="card-top">${plate(v)}${icon('arrow')}</div><h3>${esc(name(v))}</h3></button><p>Km attuali: <strong>${km(currentKM(db,v))}</strong></p>${nextCard(v)}${v.plannedWorks?.length||v.plannedOther?`<h3>Interventi da fare</h3><div class="work-tags">${(v.plannedWorks??[]).map(k=>`<span>${esc(WORKS.find(w=>w[0]===k)[1])}</span>`).join('')}</div>${v.plannedOther?`<p class="preline">${esc(v.plannedOther)}</p>`:''}`:''}<div class="button-row">${button('Aggiorna km','update-km','edit','secondary',`data-id="${v.id}"`)}${button('Scegli interventi','plan-works','wrench','secondary',`data-id="${v.id}"`)}${button('Registra intervento','new-service','plus','',`data-id="${v.id}"`)}</div></article>`).join('')}</div>`:empty('clock','Nessun lavoro programmato','Apri una scheda Auto e premi Scegli interventi. Quando registri un lavoro, indica il prossimo controllo in km o per data.'));
 }
+
 function allServicesPage(){
  const list=[...data().services].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt));
  return heading('Tutti gli interventi',`${list.length} lavori nello storico della tua officina.`,button('Scarica report','export-report','download'))+`<div class="services">${list.length?list.map(s=>serviceCard(s,true)).join(''):empty('wrench','Uno storico ancora da scrivere','Apri la scheda di un’auto per registrare un lavoro.')}</div>`;
@@ -195,6 +196,11 @@ async function submit(form){
   download(csv?reportCSV(r):reportHTML(r),`Officina-report-${r.scope.replace(/[^a-zA-Z0-9_-]/g,'_')}-${today()}.${csv?'csv':'html'}`,csv?'text/csv;charset=utf-8':'text/html;charset=utf-8');
   return 'Report preparato. Salvalo in File o sul computer.';
  }
+ if(kind==='update-km'){
+ const candidate=structuredClone(data()),v=candidate.vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
+ const value=integer(get('kilometers'),'Km attuali');if(value<currentKM(data(),v))throw Error('I km non possono essere inferiori a quelli già registrati.');
+ v.kilometers=value;await store.commit(candidate);return 'Km aggiornati. Scadenze ricalcolate.';
+ }
  if(kind==='plan-works'){
   const candidate=structuredClone(data()),v=candidate.vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
   v.plannedWorks=fields.getAll('works');v.plannedOther=get('plannedOther');await store.commit(candidate);return 'Interventi da fare salvati.';
@@ -242,6 +248,7 @@ async function action(nameAction,element){
  case 'new-vehicle':vehicleForm();break;
  case 'edit-vehicle':vehicleForm(id);break;
  case 'open-vehicle':selectedVehicle=id;selectedService=null;render();window.scrollTo(0,0);break;
+ case 'update-km':kilometersForm(id);break;
  case 'vehicle-photo':vehiclePhotoForm(id);break;
  case 'new-service':serviceForm(id);break;
  case 'edit-service':serviceForm(null,id);break;
@@ -361,4 +368,9 @@ function vehiclePhotoForm(id){
  const v=data().vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
  servicePhoto=v.photo??'';photoProcessing=false;photoGeneration++;
  modal('Foto auto',v.plate,photoFields(),'vehicle-photo',id,'Salva foto');
+}
+
+function kilometersForm(id){
+ const v=data().vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
+ modal('Aggiorna km',v.plate,field('Km attuali *','kilometers',currentKM(data(),v),'text','required inputmode="numeric" pattern="[0-9]{1,7}" maxlength="7"')+'<p class="help">Inserisci i km senza punti o virgole. Le scadenze vengono aggiornate al salvataggio.</p>','update-km',id,'Salva km');
 }
