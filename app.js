@@ -12,6 +12,7 @@ const date=s=>new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'short',year:
 const name=v=>[v.make,v.model].filter(Boolean).join(' ')||'Auto senza modello';
 const store=new LocalStore();
 let tab='auto',selectedVehicle=null,selectedService=null,query='',fatal=null,pendingImport=null,submitting=false,lastActivity=Date.now(),toastTimer,updateWaiting=null;
+let servicePhoto='',photoProcessing=false,photoGeneration=0;
 let previousFocus,installPrompt=null,offlineReady=false;
 function data(){return store.data??emptyDatabase();}
 function toast(text){$('#toast').textContent=text;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,6000);}
@@ -72,7 +73,7 @@ function servicePage(s){
  const v=data().vehicles.find(v=>v.id===s.vehicleID);
  return `<button class="back" data-action="back-service">${icon('back')}Torna allo storico</button>`+heading('Scheda intervento',`${v?.plate??''} · ${date(s.date)}`,button('Modifica','edit-service','edit','secondary',`data-id="${s.id}"`))+
  `<section class="panel"><p class="eyebrow">INTERVENTO COMPLETATO</p><div class="detail-data">${info('Auto',`${v?.plate??''} · ${v?name(v):''}`)}${info('Cliente',v?.owner)}${info('Data',date(s.date))}${info('Chilometraggio',km(s.kilometers))}${info('Costo',s.cost===null?'Non indicato':money(s.cost))}</div>
- <div class="section-title"><h2>Lavori eseguiti</h2></div><div class="work-tags">${s.works.map(k=>`<span>${esc(WORKS.find(w=>w[0]===k)[1])}</span>`).join('')}</div>${s.otherWork?`<p class="preline">${esc(s.otherWork)}</p>`:''}
+ ${s.photo?`<figure class="vehicle-photo"><img src="${esc(s.photo)}" alt="Foto del veicolo per questo intervento"></figure>`:''}<div class="section-title"><h2>Lavori eseguiti</h2></div><div class="work-tags">${s.works.map(k=>`<span>${esc(WORKS.find(w=>w[0]===k)[1])}</span>`).join('')}</div>${s.otherWork?`<p class="preline">${esc(s.otherWork)}</p>`:''}
  <div class="detail-data">${s.engineOil?info('Olio motore / specifica',s.engineOil):''}${s.oilLiters?info('Litri olio motore',s.oilLiters):''}${s.transmissionOil?info('Olio trasmissione',s.transmissionOil):''}${s.parts?info('Ricambi e filtri: marche / codici',s.parts):''}</div>
  ${s.notes?`<div class="section-title"><h2>Note</h2></div><p class="preline">${esc(s.notes)}</p>`:''}
  ${s.nextKilometers!==null||s.nextDate?`<div class="section-title"><h2>Prossimo controllo</h2></div><div class="detail-data">${s.nextKilometers!==null?info('A km',km(s.nextKilometers)):''}${s.nextDate?info('Entro il',date(s.nextDate)):''}</div>`:''}
@@ -89,16 +90,15 @@ function allServicesPage(){
  return heading('Tutti gli interventi',`${list.length} lavori nello storico della tua officina.`,button('Scarica report','export-report','download'))+`<div class="services">${list.length?list.map(s=>serviceCard(s,true)).join(''):empty('wrench','Uno storico ancora da scrivere','Apri la scheda di un’auto per registrare un lavoro.')}</div>`;
 }
 function backupPage(){
- return heading('Backup e sicurezza','Prenditi cura anche dello storico.')+
- `<div class="backup-grid"><section class="panel"><p class="eyebrow">COPIA DEI DATI</p><h2>Un backup, sempre con te.</h2><p class="muted">Salva una copia esterna prima di cambiare dispositivo, ripristinare o cancellare i dati del browser.</p><div class="button-row">${button('Backup cifrato','encrypted-export','shield')}${button('Backup JSON','export','download','secondary')}</div><p class="help">Il JSON semplice contiene anche i dati dei clienti. Il backup cifrato richiede una password.</p></section>
- <section class="panel"><p class="eyebrow">RIPRISTINO</p><h2>Riparti dal tuo archivio.</h2><p class="muted">Importa un backup Officina, anche dalla prima versione iOS. Il ripristino sostituisce tutto l’archivio e richiede conferma.</p><div class="button-row">${button('Importa backup','import','upload','secondary')}</div><p class="help">L’archivio precedente viene conservato come una sola copia interna di recupero.</p></section>
- <section class="panel"><p class="eyebrow">PROTEZIONE LOCALE</p><h2>${store.encrypted?'Archivio cifrato':'Password dell’archivio'}</h2><p class="muted">${store.encrypted?'La password sblocca i dati. L’app si blocca dopo 10 minuti di inattività o quando la chiudi.':'Puoi cifrare i dati sul dispositivo con una password. Una password persa non può essere recuperata dall’app.'}</p><div class="button-row">${store.encrypted?button('Blocca ora','lock','lock')+button('Cambia password','change-vault','edit','secondary'):button('Attiva cifratura','enable-vault','lock')}${store.encrypted?button('Disattiva cifratura','disable-vault','shield','secondary'):''}</div></section>
- <section class="panel"><p class="eyebrow">SU QUESTO DISPOSITIVO</p><h2>${data().vehicles.length} auto · ${data().services.length} interventi</h2><p class="muted">Nessun account, analytics o sincronizzazione. I tuoi inserimenti non vengono inviati a un server.</p><div class="button-row">${button('Dati di esempio','demo','car','secondary')}${button('Richiedi spazio persistente','persist','shield','secondary')}</div><p class="help" id="persistence-status">Il browser può rimuovere i dati locali. Il backup esterno resta necessario.</p></section></div>
- <section class="panel install-guide"><details><summary>Come installare Officina sul telefono</summary><p>iPhone/iPad: apri l’indirizzo HTTPS in Safari → Condividi → Aggiungi alla schermata Home. Android: apri lo stesso indirizzo in Chrome → menu → Installa app / Aggiungi alla schermata Home.</p><p>I dati restano separati per dispositivo e possono essere separati fra browser e app installata. Apri sempre la stessa installazione.</p><p>Per avviare il pacchetto sul Mac o PC usa <strong>avvia_locale.py</strong>. Per il telefono in rete locale serve un indirizzo HTTPS con certificato attendibile. Il file ZIP non si installa da solo.</p></details></section>
- <section class="panel install-guide"><details><summary>Copia interna prima dell’ultimo ripristino</summary><p>La copia interna aiuta a recuperare un ripristino precedente. Non sostituisce un backup salvato in File o sul computer. Quando attivi o cambi la cifratura, viene eliminata per non lasciare vecchi dati meno protetti.</p><div class="button-row">${button('Esporta copia precedente','export-previous','download','secondary')}${button('Elimina copia interna','delete-previous','trash','secondary')}</div></details></section>
+ const services=[...data().services].sort((a,b)=>b.date.localeCompare(a.date));
+ return heading('Backup e interventi','Salva una copia dei tuoi dati e consulta i lavori effettuati.')+
+ `<section class="panel"><h2>Backup dei dati</h2><p class="muted">Il file JSON contiene auto, clienti, interventi e foto. Conservalo in un posto sicuro: non è protetto da password.</p><div class="button-row">${button('Scarica backup','export','download')}${button('Importa backup','import','upload','secondary')}</div><p class="help">Importare un backup sostituisce l’archivio attuale, dopo la tua conferma. Salva una copia prima di cambiare dispositivo o cancellare i dati del browser.</p>${store.encrypted?`<p class="help">Questo dispositivo usa ancora la protezione della versione precedente.</p>${button('Rimuovi password locale','disable-vault','shield','secondary')}`:''}</section>
+ <div class="list-top"><h2>Interventi effettuati (${services.length})</h2>${services.length?button('Scarica report','export-report','download','secondary'):''}</div>
+ ${services.length?`<div class="service-list">${services.map(s=>serviceCard(s,true)).join('')}</div>`:'<p class="muted">Nessun intervento registrato.</p>'}
  ${updateWaiting?`<div class="notice">È disponibile una nuova versione. Salva le modifiche prima di aggiornare. ${button('Aggiorna app','update','download','secondary')}</div>`:''}
- <p class="footer-note">Officina PWA 1.1.0 · Solo locale · Olio e intervalli vanno verificati sul manuale del veicolo.</p>`;
+ <p class="footer-note">Officina · Dati e foto salvati solo su questo dispositivo.</p>`;
 }
+
 function lockedPage(){
  return `<section class="panel locked"><img src="assets/icon-192.png" alt="Meccanico di Officina"><h1>La tua officina è protetta.</h1><p class="muted">Inserisci la password per aprire l’archivio su questo dispositivo.</p><form id="unlock-form"><label class="field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required maxlength="256" autofocus></label><p class="dialog-error" id="unlock-error" hidden role="alert"></p><p><button class="button" type="submit">${icon('lock')}Sblocca archivio</button></p></form><p class="help">La password non è recuperabile. Se la dimentichi, puoi sostituire l’archivio con un backup di cui conosci la password.</p><div class="button-row">${button('Esporta originale','export-original','download','secondary')}${button('Ripristina backup','import','upload','secondary')}</div></section>`;
 }
@@ -118,7 +118,7 @@ function modal(title,eyebrow,body,formType,id='',saveText='Salva'){
  d.innerHTML=`<form class="modal-form" id="modal-form"><div class="dialog-header"><div><p class="eyebrow">${esc(eyebrow)}</p><h2 id="modal-title">${esc(title)}</h2></div><button class="icon-button" type="button" data-action="close-modal" aria-label="Chiudi">${icon('close')}</button></div><div class="form-body">${body}</div><div class="dialog-error form-error" id="form-error" role="alert"></div><div class="form-actions"><button type="button" class="button secondary" data-action="close-modal">Annulla</button><button type="submit" class="button">${icon('check')}${esc(saveText)}</button></div></form>`;
  d.showModal();
 }
-function closeModal(){if(submitting)return;$('#modal').close();$('#modal').innerHTML='';pendingImport=null;previousFocus?.focus();}
+function closeModal(){if(submitting)return;photoGeneration++;$('#modal').close();$('#modal').innerHTML='';pendingImport=null;previousFocus?.focus();}
 function field(label,key,value='',type='text',options=''){return `<label class="field"><span>${esc(label)}</span><input name="${key}" type="${type}" value="${esc(value)}" ${options}></label>`;}
 function area(label,key,value='',max=10000){return `<label class="field full"><span>${esc(label)}</span><textarea name="${key}" rows="3" maxlength="${max}">${esc(value)}</textarea></label>`;}
 function section(title,body){return `<section class="form-section"><h3>${esc(title)}</h3>${body}</section>`;}
@@ -144,6 +144,7 @@ function vehicleForm(id){
 function checks(group,selected){return `<div class="checks">${group==='filtri'?'<label class="check all"><input type="checkbox" id="all-filters">Tutti i filtri della scheda</label>':''}${WORKS.filter(w=>w[2]===group).map(w=>`<label class="check"><input type="checkbox" name="works" value="${w[0]}" data-work-group="${group}" ${selected.includes(w[0])?'checked':''}>${esc(w[1])}</label>`).join('')}</div>`;}
 function serviceForm(vehicleID,serviceID){
  const s=data().services.find(s=>s.id===serviceID),v=data().vehicles.find(v=>v.id===(s?.vehicleID??vehicleID));if(!v)throw Error('Auto non trovata.');
+ servicePhoto=s?.photo??'';photoProcessing=false;photoGeneration++;
  const selected=s?.works??v.plannedWorks??[];
  modal(s?'Modifica intervento':'Nuovo intervento',v.plate,
  (!s&&(v.plannedWorks?.length||v.plannedOther)?'<p class="notice">Sono proposti gli interventi da fare salvati nella scheda auto.</p><label class="check"><input type="checkbox" name="completePlanned" checked>Al salvataggio, rimuovi dal promemoria i lavori qui registrati.</label>':'')+
@@ -151,6 +152,7 @@ function serviceForm(vehicleID,serviceID){
  section('Olio',checks('olio',selected)+`<div class="field-grid oil-fields" id="engine-fields" ${selected.includes('engineOil')?'':'hidden'}>${field('Tipo olio motore / marca / specifica','engineOil',s?.engineOil,'text','maxlength="300"')}${field('Litri olio motore','oilLiters',s?.oilLiters,'text','inputmode="decimal" maxlength="20"')}</div><div class="oil-fields" id="transmission-fields" ${selected.includes('transmissionOil')?'':'hidden'}>${field('Tipo olio trasmissione / specifica','transmissionOil',s?.transmissionOil,'text','maxlength="300"')}</div>`)+
  section('Filtri',checks('filtri',selected)+'<p class="help">Antipolline e climatizzatore riprendono le due voci della foto: su alcune auto sono lo stesso componente.</p>')+
  section('Altri lavori',checks('lavori',selected)+`<div class="oil-fields">${area('Altri lavori / interventi personalizzati','otherWork',s?.otherWork??v.plannedOther,2000)}</div>`)+
+ section('Foto del veicolo',`<div id="service-photo-preview">${photoPreview()}</div><div class="button-row">${button('Scatta foto','take-photo','car','secondary')}${button('Scegli foto','choose-photo','upload','secondary')}</div><input id="service-photo-camera" type="file" accept="image/*" capture="environment" hidden><input id="service-photo-file" type="file" accept="image/*" hidden><p class="help" id="photo-status">Una foto per intervento, salvata sul dispositivo e inclusa nel backup.</p>`)+
  section('Ricambi, note e costo',`<div class="field-grid">${area('Marche / codici ricambi e filtri','parts',s?.parts,5000)}${area('Note intervento','notes',s?.notes)}${field('Costo totale € (facoltativo)','cost',s?.cost===null?'':s?.cost??'','text','inputmode="decimal" maxlength="13"')}</div>`)+
  section('Prossimo controllo',`<div class="field-grid">${field('A km (facoltativo)','nextKilometers',s?.nextKilometers??'','text','inputmode="numeric" maxlength="7"')}${field('Entro il (facoltativo)','nextDate',s?.nextDate??'','date')}</div><p class="help">La scadenza attiva è quella dell’ultimo intervento. Per mantenerne una precedente, riportala qui.</p>`),'service',s?.id??'');
  $('#modal').dataset.vehicle=v.id;syncFilters();
@@ -204,7 +206,8 @@ async function submit(form){
  }
  if(kind==='service'){
   const old=data().services.find(s=>s.id===id),works=fields.getAll('works');
-  const s={id:old?.id??newID(),vehicleID:$('#modal').dataset.vehicle,date:get('date'),kilometers:integer(get('kilometers'),'Km all’intervento'),works,engineOil:works.includes('engineOil')?get('engineOil'):'',oilLiters:works.includes('engineOil')?get('oilLiters'):'',transmissionOil:works.includes('transmissionOil')?get('transmissionOil'):'',parts:get('parts'),otherWork:get('otherWork'),notes:get('notes'),cost:amount(get('cost')),nextKilometers:get('nextKilometers')?integer(get('nextKilometers'),'Prossimo controllo'):null,nextDate:get('nextDate')||null,createdAt:old?.createdAt??new Date().toISOString()};
+  if(photoProcessing)throw Error('Attendi la preparazione della foto.');
+ const s={photo:servicePhoto,id:old?.id??newID(),vehicleID:$('#modal').dataset.vehicle,date:get('date'),kilometers:integer(get('kilometers'),'Km all’intervento'),works,engineOil:works.includes('engineOil')?get('engineOil'):'',oilLiters:works.includes('engineOil')?get('oilLiters'):'',transmissionOil:works.includes('transmissionOil')?get('transmissionOil'):'',parts:get('parts'),otherWork:get('otherWork'),notes:get('notes'),cost:amount(get('cost')),nextKilometers:get('nextKilometers')?integer(get('nextKilometers'),'Prossimo controllo'):null,nextDate:get('nextDate')||null,createdAt:old?.createdAt??new Date().toISOString()};
   if(s.date>today())throw Error('La data di un lavoro eseguito non può essere futura.');validateChronology(data(),s);
   const candidate=structuredClone(data());candidate.services=candidate.services.filter(x=>x.id!==s.id);candidate.services.push(s);
   if(!old&&fields.has('completePlanned')){const v=candidate.vehicles.find(v=>v.id===s.vehicleID);v.plannedWorks=(v.plannedWorks??[]).filter(k=>!s.works.includes(k));if(v.plannedOther?.trim()===s.otherWork.trim())v.plannedOther='';}
@@ -316,3 +319,32 @@ async function init(){
  }
 }
 init();
+
+function photoPreview(){return servicePhoto?`<figure class="vehicle-photo"><img src="${esc(servicePhoto)}" alt="Foto del veicolo"></figure>${button('Rimuovi foto','remove-photo','trash','secondary')}`:'<p class="muted">Nessuna foto aggiunta.</p>';}
+async function preparePhoto(file){
+ if(!file||file.size>20*1024*1024)throw Error('Scegli una foto fino a 20 MB.');
+ if(!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type))throw Error('Scegli una foto JPG, PNG, WebP o HEIC.');
+ const url=URL.createObjectURL(file);
+ try{
+  const img=new Image();img.src=url;await img.decode();
+  const scale=Math.min(1,1280/Math.max(img.naturalWidth,img.naturalHeight));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+  for(const quality of [.82,.65,.45,.25]){const result=canvas.toDataURL('image/jpeg',quality);if(result.length<=700000)return result;}
+  throw Error('Foto troppo dettagliata: scegli una foto più piccola.');
+ }finally{URL.revokeObjectURL(url);}
+}
+document.addEventListener('click',event=>{
+ const action=event.target.closest('[data-action]')?.dataset.action;
+ if(action==='take-photo')$('#service-photo-camera')?.click();
+ if(action==='choose-photo')$('#service-photo-file')?.click();
+ if(action==='remove-photo'){photoGeneration++;photoProcessing=false;servicePhoto='';$('#service-photo-preview').innerHTML=photoPreview();$('#photo-status').textContent='Foto rimossa. Premi Salva per confermare.';}
+});
+document.addEventListener('change',async event=>{
+ if(!['service-photo-camera','service-photo-file'].includes(event.target.id))return;
+ const file=event.target.files?.[0];if(!file)return;
+ const generation=++photoGeneration;photoProcessing=true;$('#photo-status').textContent='Preparazione della foto…';
+ try{const photo=await preparePhoto(file);if(generation!==photoGeneration)return;servicePhoto=photo;$('#service-photo-preview').innerHTML=photoPreview();$('#photo-status').textContent='Foto pronta. Premi Salva per conservarla.';}
+ catch(error){if(generation===photoGeneration)$('#photo-status').textContent='Foto non aggiunta: '+error.message;}
+ finally{if(generation===photoGeneration)photoProcessing=false;event.target.value='';}
+});
