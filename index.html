@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'self'; manifest-src 'self'">
+<meta name="theme-color" content="#102337">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Officina">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="stylesheet" href="app.css">
+<title>Officina • Auto e manutenzione</title>
+</head>
+<body>
+<a class="skip" href="#view">Vai al contenuto</a>
+<div id="splash" aria-hidden="true"><img src="assets/meccanico.webp" alt=""><strong>Officina</strong><span>Ogni auto, il suo storico.</span></div>
+<header class="topbar"><a href="./" class="brand"><img src="assets/icon-192.png" alt=""><span>Officina<small>Il tuo registro di manutenzione</small></span></a><div class="top-actions"><span class="local-badge" id="local-status">Solo su questo dispositivo</span><button class="icon-button" id="lock-button" data-action="lock" aria-label="Blocca archivio" hidden></button></div></header>
+<div class="shell"><nav id="tabs" aria-label="Navigazione principale"></nav><main id="view" tabindex="-1"><div class="empty"><h1>Caricamento archivio…</h1><p>La tua officina, sul tuo dispositivo.</p></div></main></div>
+<dialog id="modal" aria-labelledby="modal-title"></dialog>
+<dialog id="confirm" aria-labelledby="confirm-title"><div class="dialog-inner"><p class="eyebrow">Conferma operazione</p><h2 id="confirm-title"></h2><p id="confirm-message"></p><div class="dialog-error" id="confirm-error" role="alert" hidden></div><div class="form-actions"><button class="button secondary" id="confirm-no" type="button">Annulla</button><button class="button danger" id="confirm-yes" type="button">Conferma</button></div></div></dialog>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<input id="import-file" type="file" accept=".json,application/json" hidden>
+<noscript><p>Abilita JavaScript per usare l’archivio locale.</p></noscript>
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -12,7 +12,7 @@ Per l’avvio sul computer: `python3 avvia_locale.py`. Per installare su iPhone/
 
 ## Sviluppo e verifiche
 
-`npm test` esegue i test unitari. `tests/browser.mjs` contiene il QA di integrazione con Playwright. I file in `dist/` costituiscono la distribuzione statica; i moduli sorgente sono nella radice.
+`npm test` esegue i test unitari. `tests/browser.mjs` contiene il QA di integrazione con Playwright. La radice contiene la distribuzione statica e i moduli sorgente dell’app.
 
 Vedi LEGGIMI.md e INSTALLAZIONE_IPHONE_LOCALE.md. Prima di cambiare dispositivo o installazione esportare un backup JSON.
 
