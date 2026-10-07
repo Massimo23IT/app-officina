@@ -2,9 +2,10 @@ export const VERSION = 1;
 export const MAX_BYTES = 20 * 1024 * 1024;
 export const MAX_IMPORT_BYTES = 32 * 1024 * 1024;
 export const WORKS = [
+ ['frontShocks','Ammortizzatori anteriori','lavori'],['rearShocks','Ammortizzatori posteriori','lavori'],['frontLights','Luci anteriori','lavori'],['rearLights','Luci posteriori','lavori'],
  ['engineOil','Olio motore','olio'],['transmissionOil','Olio trasmissione','olio'],
- ['oilFilter','Filtro olio','filtri'],['airFilter','Filtro aria','filtri'],['fuelFilter','Filtro carburante','filtri'],['pollenFilter','Filtro antipolline','filtri'],['climateFilter','Filtro climatizzatore','filtri'],
- ['plugs','Candele','lavori'],['frontBrakes','Freni anteriori','lavori'],['rearBrakes','Freni posteriori','lavori'],['timing','Distribuzione / pompa acqua','lavori'],['coolant','Liquido refrigerante','lavori'],['tires','Gomme','lavori'],['climateRecharge','Ricarica climatizzatore','lavori'],['accessoryBelts','Cinghie ausiliarie','lavori'],['battery','Batteria','lavori'],['clutch','Frizione','lavori'],['suspension','Sospensioni / ammortizzatori','lavori'],['diagnostics','Diagnosi elettronica','lavori'],['alignment','Convergenza / equilibratura','lavori'],['brakeFluid','Liquido freni','lavori'],['inspection','Controllo generale','lavori']
+ ['oilFilter','Filtro olio','filtri'],['airFilter','Filtro aria','filtri'],['fuelFilter','Filtro carburante','filtri'],['pollenFilter','Filtro polline','filtri'],['climateFilter','Filtro climatizzatore','filtri'],
+ ['plugs','Candele','lavori'],['frontBrakes','Freni anteriori','lavori'],['rearBrakes','Freni posteriori','lavori'],['timing','Distribuzione completa','lavori'],['coolant','Liquido refrigerante','lavori'],['tires','Gomme','lavori'],['climateRecharge','Ricarica climatizzatore','lavori'],['accessoryBelts','Cinghie ausiliarie','lavori'],['battery','Batteria','lavori'],['clutch','Frizione','lavori'],['suspension','Sospensioni / ammortizzatori','lavori'],['diagnostics','Diagnosi elettronica','lavori'],['alignment','Convergenza / equilibratura','lavori'],['brakeFluid','Liquido freni','lavori'],['inspection','Controllo generale','lavori']
  ,["differentialOil","Olio differenziale","lavori"],
  ["powerSteeringFluid","Olio servosterzo","lavori"],
  ["gearboxFilter","Filtro cambio automatico","lavori"],
@@ -95,7 +96,7 @@ export const WORKS = [
  ["compression","Test compressione / tenuta cilindri","lavori"]
 ];
 const workIDs = new Set(WORKS.map(w=>w[0]));
-const nativeNames = Object.fromEntries(WORKS.map(w=>[w[1],w[0]]));
+const nativeNames = {...Object.fromEntries(WORKS.map(w=>[w[1],w[0]])),'Distribuzione / pompa acqua':'timing','Filtro antipolline':'pollenFilter'};
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function newID(){
  if(globalThis.crypto?.randomUUID)return crypto.randomUUID();
