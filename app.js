@@ -63,7 +63,7 @@ function updatePartsLinks(){
 function vehiclePage(v){
  const jobs=sortedServices(data(),v.id);
  return `<button class="back" data-action="back">${icon('back')}Le tue auto</button>`+heading(v.plate,name(v),`<div class="heading-actions">${button('Scarica report','export-report','download','secondary',`data-id="${v.id}"`)}${button('Modifica','edit-vehicle','edit','secondary',`data-id="${v.id}"`)}</div>`)+
- `<div class="detail-grid"><section class="panel"><p class="eyebrow">SCHEDA AUTO</p>${v.photo?`<figure class="vehicle-photo"><img src="${esc(v.photo)}" alt="Foto principale dell’auto ${esc(v.plate)}"></figure>`:''}<div class="detail-data">${info('Chilometraggio attuale',km(currentKM(data(),v)))}${info('Cliente',v.owner)}${info('Marca / modello',name(v))}${info('Telefono',v.phone)}</div>${v.notes?`<p class="help preline">${esc(v.notes)}</p>`:''}<div class="button-row">${button('Aggiorna km','update-km','edit','secondary',`data-id="${v.id}"`)}${button(v.photo?'Modifica foto':'Aggiungi foto','vehicle-photo','car','secondary',`data-id="${v.id}"`)}${button('Cerca auto dalla targa','edit-vehicle','search','secondary',`data-id="${v.id}"`)}</div></section><section class="panel"><p class="eyebrow">PROSSIMO CONTROLLO</p>${nextCard(v)}<div class="button-row">${button('Indica prossimo controllo',latest(data(),v)?'edit-service':'new-service','clock','secondary',`data-id="${latest(data(),v)?.id??v.id}"`)}</div></section></div>
+ `<div class="detail-grid"><section class="panel"><p class="eyebrow">SCHEDA AUTO</p>${v.photo?`<figure class="vehicle-photo"><img src="${esc(v.photo)}" alt="Foto principale dell’auto ${esc(v.plate)}"></figure>`:''}<div class="detail-data">${info('Chilometraggio attuale',km(currentKM(data(),v)))}${info('Cliente',v.owner)}${info('Marca / modello',name(v))}${info('Telefono',v.phone)}</div>${v.notes?`<p class="help preline">${esc(v.notes)}</p>`:''}<div class="button-row">${button('Aggiorna km','update-km','edit','secondary',`data-id="${v.id}"`)}${button(v.photo?'Modifica foto':'Aggiungi foto','vehicle-photo','car','secondary',`data-id="${v.id}"`)}</div></section><section class="panel"><p class="eyebrow">PROSSIMO CONTROLLO</p>${nextCard(v)}<div class="button-row">${button('Indica prossimo controllo',latest(data(),v)?'edit-service':'new-service','clock','secondary',`data-id="${latest(data(),v)?.id??v.id}"`)}</div></section></div>
  <section class="panel planned-panel"><div class="section-title"><div><p class="eyebrow">PROMEMORIA AUTO</p><h2>Interventi da fare</h2></div>${button('Scegli interventi','plan-works','wrench','secondary',`data-id="${v.id}"`)}</div>${v.plannedWorks?.length?`<div class="work-tags">${v.plannedWorks.map(k=>`<span>${esc(workLabel(k))}</span>`).join('')}</div>`:''}${v.plannedOther?`<p class="preline">${esc(v.plannedOther)}</p>`:''}${!v.plannedWorks?.length&&!v.plannedOther?'<p class="muted">Scegli olio, filtri, freni e gli altri lavori da effettuare su questa auto.</p>':'<p class="help">Le voci saranno proposte quando registri un nuovo intervento.</p>'}</section>
  ${v.plannedWorks?.length?`<section class="panel"><h2>Prezzi lavori da fare</h2>${priceDetails(v.plannedPrices,v.plannedWorks)}</section>`:''}${partsSearch(v)}
  <div class="section-title"><h2>Storico interventi <small>(${jobs.length})</small></h2>${button('Registra intervento','new-service','plus','',`data-id="${v.id}"`)}</div>
@@ -98,7 +98,7 @@ function backupPage(){
  <div class="list-top"><h2>Interventi effettuati (${services.length})</h2>${services.length?button('Scarica report','export-report','download','secondary'):''}</div>
  ${services.length?`<div class="service-list">${services.map(s=>serviceCard(s,true)).join('')}</div>`:'<p class="muted">Nessun intervento registrato.</p>'}
  ${updateWaiting?`<div class="notice">È disponibile una nuova versione. Salva le modifiche prima di aggiornare. ${button('Aggiorna app','update','download','secondary')}</div>`:''}
- <p class="footer-note">Officina · Dati e foto salvati solo su questo dispositivo.</p>`;
+ ${button('Controlla aggiornamenti','check-update','download','secondary')}<p class="footer-note">Officina 1.3.1 · Dati e foto salvati solo su questo dispositivo.</p>`;
 }
 
 function lockedPage(){
@@ -139,7 +139,6 @@ function planForm(id){
 function vehicleForm(id){
  const v=data().vehicles.find(v=>v.id===id);servicePhoto=v?.photo??'';photoProcessing=false;photoGeneration++;modal(v?'Modifica auto':'Nuova auto','SCHEDA AUTO',
  section('Identificazione',`<div class="field-grid">${field('Targa *','plate',v?.plate,'text','required maxlength="24" autocapitalize="characters" autocomplete="off" autofocus')}${field('Km attuali *','kilometers',v?currentKM(data(),v):'','text','required inputmode="numeric" pattern="[0-9]{1,7}" maxlength="7"')}${field('Marca','make',v?.make,'text','maxlength="100"')}${field('Modello','model',v?.model,'text','maxlength="100"')}</div>`)+
- section('Ricerca gratuita dalla targa',`<div class="button-row">${button('Copia targa','copy-plate','file','secondary')}<a class="button secondary" href="https://www.auto-doc.it/" target="_blank" rel="noopener noreferrer">${icon('search')}Cerca auto dalla targa</a></div><p class="help">1. Copia la targa. 2. Apri AUTODOC e incollala nella ricerca per targa. 3. Torna qui e inserisci marca e modello nei campi sopra, verificandoli sul libretto. La ricerca si svolge sul sito esterno e non compila automaticamente la scheda.</p>`)+
  photoFields()+
  section('Cliente',`<div class="field-grid">${field('Nome / azienda','owner',v?.owner,'text','maxlength="200" autocomplete="name"')}${field('Telefono','phone',v?.phone,'tel','maxlength="80" autocomplete="tel"')}</div>`)+
  section('Interventi da fare',plannedMenu(v))+
@@ -306,6 +305,11 @@ async function action(nameAction,element){
  case 'delete-previous':if(await ask('Eliminare la copia interna?','Verrà eliminata soltanto la copia di recupero prima dell’ultimo ripristino. L’archivio attuale rimane disponibile.','Elimina copia')){await store.removePrevious();toast('Copia interna eliminata.');}break;
  case 'download-service':{const s=data().services.find(s=>s.id===id);download(report(s),`Officina-${data().vehicles.find(v=>v.id===s.vehicleID).plate}-${s.date}.txt`,'text/plain;charset=utf-8');break;}
  case 'share-service':{const s=data().services.find(s=>s.id===id);if(navigator.share){try{await navigator.share({title:'Officina • Scheda intervento',text:report(s)});}catch(e){if(e.name!=='AbortError')throw e;}}else{download(report(s),`Officina-intervento-${s.date}.txt`,'text/plain;charset=utf-8');toast('Scheda scaricata come testo.');}break;}
+ case 'check-update':{
+ if(!('serviceWorker' in navigator))throw Error('Aggiornamenti non disponibili in questo browser.');
+ const registration=await navigator.serviceWorker.getRegistration();if(!registration)throw Error('Riapri l’app online per preparare gli aggiornamenti.');
+ await registration.update();if(registration.waiting){updateWaiting=registration.waiting;render();}else toast(registration.installing?'Aggiornamento in preparazione. Attendi qualche secondo.':'Controllo completato. Versione in uso: 1.3.1.');break;
+ }
  case 'update':if(updateWaiting&&!$('#modal').open)updateWaiting.postMessage({type:'SKIP_WAITING'});else toast('Chiudi il modulo dopo aver salvato prima di aggiornare.');break;
  }
 }
@@ -351,7 +355,7 @@ async function init(){
  try{await store.open();}catch(e){fatal=e.message;}
  render();setTimeout(()=>$('#splash').remove(),1200);
  if('serviceWorker' in navigator&&isSecureContext&&location.protocol!=='file:'){
-  try{const registration=await navigator.serviceWorker.register('./sw.js',{scope:'./'});if(registration.waiting){updateWaiting=registration.waiting;toast('Nuova versione disponibile in Backup.');}
+  try{const registration=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});if(registration.waiting){updateWaiting=registration.waiting;toast('Nuova versione disponibile in Backup.');}
    registration.addEventListener('updatefound',()=>{const worker=registration.installing;worker?.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller){updateWaiting=worker;toast('Nuova versione disponibile in Backup.');if(tab==='backup')render();}});});
    navigator.serviceWorker.ready.then(()=>{offlineReady=true;if($('#offline-status'))$('#offline-status').textContent=offlineMessage();});
    let refreshing=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(updateWaiting&&!refreshing){refreshing=true;location.reload();}});
