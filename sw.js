@@ -1,4 +1,4 @@
-const CACHE='officina-shell-v1.2.2-planning';
+const CACHE='officina-shell-v1.2.3-simple-works';
 const ASSETS=['./','./index.html','./app.css','./app.js','./core.js','./reports.js','./crypto.js','./storage.js','./manifest.webmanifest','./assets/meccanico.webp','./assets/icon-180.png','./assets/icon-192.png','./assets/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('officina-shell-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
