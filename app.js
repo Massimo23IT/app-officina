@@ -62,7 +62,7 @@ function updatePartsLinks(){
 function vehiclePage(v){
  const jobs=sortedServices(data(),v.id);
  return `<button class="back" data-action="back">${icon('back')}Le tue auto</button>`+heading(v.plate,name(v),`<div class="heading-actions">${button('Scarica report','export-report','download','secondary',`data-id="${v.id}"`)}${button('Modifica','edit-vehicle','edit','secondary',`data-id="${v.id}"`)}</div>`)+
- `<div class="detail-grid"><section class="panel"><p class="eyebrow">SCHEDA AUTO</p><div class="detail-data">${info('Chilometraggio attuale',km(currentKM(data(),v)))}${info('Cliente',v.owner)}${info('Marca / modello',name(v))}${info('Telefono',v.phone)}</div>${v.notes?`<p class="help preline">${esc(v.notes)}</p>`:''}<div class="button-row">${button('Cerca auto dalla targa','edit-vehicle','search','secondary',`data-id="${v.id}"`)}</div></section><section class="panel"><p class="eyebrow">PROSSIMO CONTROLLO</p>${nextCard(v)}</section></div>
+ `<div class="detail-grid"><section class="panel"><p class="eyebrow">SCHEDA AUTO</p>${v.photo?`<figure class="vehicle-photo"><img src="${esc(v.photo)}" alt="Foto principale dell’auto ${esc(v.plate)}"></figure>`:''}<div class="detail-data">${info('Chilometraggio attuale',km(currentKM(data(),v)))}${info('Cliente',v.owner)}${info('Marca / modello',name(v))}${info('Telefono',v.phone)}</div>${v.notes?`<p class="help preline">${esc(v.notes)}</p>`:''}<div class="button-row">${button(v.photo?'Modifica foto':'Aggiungi foto','vehicle-photo','car','secondary',`data-id="${v.id}"`)}${button('Cerca auto dalla targa','edit-vehicle','search','secondary',`data-id="${v.id}"`)}</div></section><section class="panel"><p class="eyebrow">PROSSIMO CONTROLLO</p>${nextCard(v)}</section></div>
  <section class="panel planned-panel"><div class="section-title"><div><p class="eyebrow">PROMEMORIA AUTO</p><h2>Interventi da fare</h2></div>${button('Scegli interventi','plan-works','wrench','secondary',`data-id="${v.id}"`)}</div>${v.plannedWorks?.length?`<div class="work-tags">${v.plannedWorks.map(k=>`<span>${esc(WORKS.find(w=>w[0]===k)[1])}</span>`).join('')}</div>`:''}${v.plannedOther?`<p class="preline">${esc(v.plannedOther)}</p>`:''}${!v.plannedWorks?.length&&!v.plannedOther?'<p class="muted">Scegli olio, filtri, freni e gli altri lavori da effettuare su questa auto.</p>':'<p class="help">Le voci saranno proposte quando registri un nuovo intervento.</p>'}</section>
  ${partsSearch(v)}
  <div class="section-title"><h2>Storico interventi <small>(${jobs.length})</small></h2>${button('Registra intervento','new-service','plus','',`data-id="${v.id}"`)}</div>
@@ -134,9 +134,10 @@ function planForm(id){
  modal('Interventi da fare',v.plate,plannedMenu(v),'plan-works',id,'Salva interventi');$('#modal details').open=true;syncFilters();
 }
 function vehicleForm(id){
- const v=data().vehicles.find(v=>v.id===id);modal(v?'Modifica auto':'Nuova auto','SCHEDA AUTO',
+ const v=data().vehicles.find(v=>v.id===id);servicePhoto=v?.photo??'';photoProcessing=false;photoGeneration++;modal(v?'Modifica auto':'Nuova auto','SCHEDA AUTO',
  section('Identificazione',`<div class="field-grid">${field('Targa *','plate',v?.plate,'text','required maxlength="24" autocapitalize="characters" autocomplete="off" autofocus')}${field('Km attuali *','kilometers',v?currentKM(data(),v):'','text','required inputmode="numeric" pattern="[0-9]{1,7}" maxlength="7"')}${field('Marca','make',v?.make,'text','maxlength="100"')}${field('Modello','model',v?.model,'text','maxlength="100"')}</div>`)+
  section('Ricerca gratuita dalla targa',`<div class="button-row">${button('Copia targa','copy-plate','file','secondary')}<a class="button secondary" href="https://www.auto-doc.it/" target="_blank" rel="noopener noreferrer">${icon('search')}Cerca auto dalla targa</a></div><p class="help">1. Copia la targa. 2. Apri AUTODOC e incollala nella ricerca per targa. 3. Torna qui e inserisci marca e modello nei campi sopra, verificandoli sul libretto. La ricerca si svolge sul sito esterno e non compila automaticamente la scheda.</p>`)+
+ photoFields()+
  section('Cliente',`<div class="field-grid">${field('Nome / azienda','owner',v?.owner,'text','maxlength="200" autocomplete="name"')}${field('Telefono','phone',v?.phone,'tel','maxlength="80" autocomplete="tel"')}</div>`)+
  section('Interventi da fare',plannedMenu(v))+
  section('Note auto',area('Motore, anno, telaio o altre informazioni','notes',v?.notes))+'<p class="help">* Campi obbligatori. Inserisci i km senza punti o virgole. Aggiornali quando l’auto torna in officina.</p>','vehicle',id??'');syncFilters();
@@ -152,7 +153,7 @@ function serviceForm(vehicleID,serviceID){
  section('Olio',checks('olio',selected)+`<div class="field-grid oil-fields" id="engine-fields" ${selected.includes('engineOil')?'':'hidden'}>${field('Tipo olio motore / marca / specifica','engineOil',s?.engineOil,'text','maxlength="300"')}${field('Litri olio motore','oilLiters',s?.oilLiters,'text','inputmode="decimal" maxlength="20"')}</div><div class="oil-fields" id="transmission-fields" ${selected.includes('transmissionOil')?'':'hidden'}>${field('Tipo olio trasmissione / specifica','transmissionOil',s?.transmissionOil,'text','maxlength="300"')}</div>`)+
  section('Filtri',checks('filtri',selected)+'<p class="help">Antipolline e climatizzatore riprendono le due voci della foto: su alcune auto sono lo stesso componente.</p>')+
  section('Altri lavori',checks('lavori',selected)+`<div class="oil-fields">${area('Altri lavori / interventi personalizzati','otherWork',s?.otherWork??v.plannedOther,2000)}</div>`)+
- section('Foto del veicolo',`<div id="service-photo-preview">${photoPreview()}</div><div class="button-row">${button('Scatta foto','take-photo','car','secondary')}${button('Scegli foto','choose-photo','upload','secondary')}</div><input id="service-photo-camera" type="file" accept="image/*" capture="environment" hidden><input id="service-photo-file" type="file" accept="image/*" hidden><p class="help" id="photo-status">Una foto per intervento, salvata sul dispositivo e inclusa nel backup.</p>`)+
+ photoFields()+
  section('Ricambi, note e costo',`<div class="field-grid">${area('Marche / codici ricambi e filtri','parts',s?.parts,5000)}${area('Note intervento','notes',s?.notes)}${field('Costo totale € (facoltativo)','cost',s?.cost===null?'':s?.cost??'','text','inputmode="decimal" maxlength="13"')}</div>`)+
  section('Prossimo controllo',`<div class="field-grid">${field('A km (facoltativo)','nextKilometers',s?.nextKilometers??'','text','inputmode="numeric" maxlength="7"')}${field('Entro il (facoltativo)','nextDate',s?.nextDate??'','date')}</div><p class="help">La scadenza attiva è quella dell’ultimo intervento. Per mantenerne una precedente, riportala qui.</p>`),'service',s?.id??'');
  $('#modal').dataset.vehicle=v.id;syncFilters();
@@ -198,8 +199,13 @@ async function submit(form){
   const candidate=structuredClone(data()),v=candidate.vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
   v.plannedWorks=fields.getAll('works');v.plannedOther=get('plannedOther');await store.commit(candidate);return 'Interventi da fare salvati.';
  }
+ if(kind==='vehicle-photo'){
+  if(photoProcessing)throw Error('Attendi la preparazione della foto.');
+  const candidate=structuredClone(data()),v=candidate.vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');v.photo=servicePhoto;await store.commit(candidate);return 'Foto auto salvata.';
+ }
  if(kind==='vehicle'){
-  const existing=data().vehicles.find(v=>v.id===id);const v={plannedWorks:fields.getAll('works'),plannedOther:get('plannedOther'),id:existing?.id??newID(),plate:normalizePlate(get('plate')),make:get('make'),model:get('model'),owner:get('owner'),phone:get('phone'),kilometers:integer(get('kilometers'),'Km attuali'),notes:get('notes'),createdAt:existing?.createdAt??new Date().toISOString()};
+  if(photoProcessing)throw Error('Attendi la preparazione della foto.');
+  const existing=data().vehicles.find(v=>v.id===id);const v={photo:servicePhoto,plannedWorks:fields.getAll('works'),plannedOther:get('plannedOther'),id:existing?.id??newID(),plate:normalizePlate(get('plate')),make:get('make'),model:get('model'),owner:get('owner'),phone:get('phone'),kilometers:integer(get('kilometers'),'Km attuali'),notes:get('notes'),createdAt:existing?.createdAt??new Date().toISOString()};
   if(data().services.some(s=>s.vehicleID===v.id&&s.kilometers>v.kilometers))throw Error('I km attuali non possono essere inferiori a quelli già registrati negli interventi.');
   const candidate=structuredClone(data());candidate.vehicles=candidate.vehicles.filter(x=>x.id!==v.id);candidate.vehicles.push(v);await store.commit(candidate);
   selectedVehicle=v.id;selectedService=null;return 'Auto salvata.';
@@ -236,6 +242,7 @@ async function action(nameAction,element){
  case 'new-vehicle':vehicleForm();break;
  case 'edit-vehicle':vehicleForm(id);break;
  case 'open-vehicle':selectedVehicle=id;selectedService=null;render();window.scrollTo(0,0);break;
+ case 'vehicle-photo':vehiclePhotoForm(id);break;
  case 'new-service':serviceForm(id);break;
  case 'edit-service':serviceForm(null,id);break;
  case 'open-service':selectedService=id;render();window.scrollTo(0,0);break;
@@ -348,3 +355,10 @@ document.addEventListener('change',async event=>{
  catch(error){if(generation===photoGeneration)$('#photo-status').textContent='Foto non aggiunta: '+error.message;}
  finally{if(generation===photoGeneration)photoProcessing=false;event.target.value='';}
 });
+
+function photoFields(){return section('Foto del veicolo',`<div id="service-photo-preview">${photoPreview()}</div><div class="button-row">${button('Scatta foto','take-photo','car','secondary')}${button('Scegli foto','choose-photo','upload','secondary')}</div><input id="service-photo-camera" type="file" accept="image/*" capture="environment" hidden><input id="service-photo-file" type="file" accept="image/*" hidden><p class="help" id="photo-status">Una foto per intervento, salvata sul dispositivo e inclusa nel backup.</p>`);}
+function vehiclePhotoForm(id){
+ const v=data().vehicles.find(v=>v.id===id);if(!v)throw Error('Auto non trovata.');
+ servicePhoto=v.photo??'';photoProcessing=false;photoGeneration++;
+ modal('Foto auto',v.plate,photoFields(),'vehicle-photo',id,'Salva foto');
+}
