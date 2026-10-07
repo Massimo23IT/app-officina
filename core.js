@@ -95,6 +95,8 @@ export const WORKS = [
  ["leakCheck","Ricerca perdite / infiltrazioni","lavori"],
  ["compression","Test compressione / tenuta cilindri","lavori"]
 ];
+export const CATALOG = [["oilFilter","Filtro olio","filtri"],["airFilter","Filtro aria","filtri"],["pollenFilter","Filtro abitacolo","filtri"],["gplFilter","Filtro GPL","filtri"],["petrolFilter","Filtro benzina","filtri"],["dieselFilter","Filtro diesel","filtri"],["transmissionOil","Olio cambio","olio"],["engineOil","Olio motore","olio"],["timing","Distribuzione","motore"],["accessoryBelts","Cinghia ausiliaria","motore"],["ignitionService","Candele / bobine","motore"],["frontPads","Pastiglie anteriori","freni"],["rearPads","Pastiglie posteriori","freni"],["frontDiscs","Dischi anteriori","freni"],["rearDiscs","Dischi posteriori","freni"],["tubing","Tubazioni","altro"],["fuelPump","Pompa carburante","altro"],["battery","Batteria","altro"],["lights","Luci","altro"],["valveCoverGasket","Guarnizione punterie","altro"],["leaks","Perdite","altro"],["sensors","Sensori","altro"],["specificDiagnosis","Diagnosi specifica","diagnosi"],["generalDiagnosis","Diagnosi generale","diagnosi"]];
+for(const entry of CATALOG)if(!WORKS.some(w=>w[0]===entry[0]))WORKS.push(entry);
 const workIDs = new Set(WORKS.map(w=>w[0]));
 const nativeNames = {...Object.fromEntries(WORKS.map(w=>[w[1],w[0]])),'Distribuzione / pompa acqua':'timing','Filtro antipolline':'pollenFilter'};
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -143,7 +145,7 @@ export function validateDatabase(raw){
   const plate=normalizePlate(text(v,'plate',24));if(!plate)throw Error('Targa obbligatoria.');
   const plannedWorks=v.plannedWorks??[];if(!Array.isArray(plannedWorks)||new Set(plannedWorks).size!==plannedWorks.length||plannedWorks.some(w=>!workIDs.has(w)))throw Error('Interventi da fare non validi.');
   const plannedOther=v.plannedOther??'';if(typeof plannedOther!=='string'||plannedOther.length>2000)throw Error('Altri interventi da fare non validi.');
-  return {photo:validatedPhoto(v.photo),plannedWorks:[...plannedWorks],plannedOther,id:id(v.id),plate,make:text(v,'make',100),model:text(v,'model',100),owner:text(v,'owner',200),phone:text(v,'phone',80),kilometers:kmNumber(v.kilometers),notes:text(v,'notes',10000),createdAt:timestamp(v.createdAt)};
+  return {plannedPrices:validatePrices(v.plannedPrices,plannedWorks),photo:validatedPhoto(v.photo),plannedWorks:[...plannedWorks],plannedOther,id:id(v.id),plate,make:text(v,'make',100),model:text(v,'model',100),owner:text(v,'owner',200),phone:text(v,'phone',80),kilometers:kmNumber(v.kilometers),notes:text(v,'notes',10000),createdAt:timestamp(v.createdAt)};
  });
  const vehicleIDs=new Set(vehicles.map(v=>v.id));
  if(vehicleIDs.size!==vehicles.length||new Set(vehicles.map(v=>v.plate)).size!==vehicles.length)throw Error('Auto o targhe duplicate: questa targa è già presente nell’archivio.');
@@ -162,7 +164,8 @@ export function validateDatabase(raw){
   const oilLiters=text(s,'oilLiters',20);
   if(oilLiters){const liters=amount(oilLiters);if(liters===null||liters<=0||liters>100)throw Error('Quantità olio non valida.');}
   const photo=validatedPhoto(s.photo);
-  return {photo,id:id(s.id),vehicleID,date:s.date,kilometers,works:[...s.works],engineOil:text(s,'engineOil',300),oilLiters,transmissionOil:text(s,'transmissionOil',300),parts:text(s,'parts',5000),otherWork,notes:text(s,'notes',10000),cost,nextKilometers,nextDate,createdAt:timestamp(s.createdAt)};
+  const workPrices=validatePrices(s.workPrices,s.works);const pricedTotal=priceTotal(workPrices);if(pricedTotal!==null&&cost!==pricedTotal)throw Error('Il totale non corrisponde ai prezzi degli interventi.');
+  return {workPrices,photo,id:id(s.id),vehicleID,date:s.date,kilometers,works:[...s.works],engineOil:text(s,'engineOil',300),oilLiters,transmissionOil:text(s,'transmissionOil',300),parts:text(s,'parts',5000),otherWork,notes:text(s,'notes',10000),cost,nextKilometers,nextDate,createdAt:timestamp(s.createdAt)};
  });
  if(new Set(services.map(s=>s.id)).size!==services.length)throw Error('Interventi duplicati nel backup.');
  return {version:VERSION,vehicles,services};
@@ -172,7 +175,7 @@ export function validateChronology(db,service){
  if(others.some(s=>s.date<service.date&&s.kilometers>service.kilometers))throw Error('Km inferiori a quelli di un intervento precedente. Controlla data e km.');
  if(others.some(s=>s.date>service.date&&s.kilometers<service.kilometers))throw Error('Km superiori a quelli di un intervento successivo. Controlla data e km.');
 }
-export function serviceTitle(s){return [...s.works.map(k=>WORKS.find(w=>w[0]===k)?.[1]??k),...(s.otherWork?[s.otherWork]:[])].join(', ');}
+export function serviceTitle(s){return [...s.works.map(k=>CATALOG.find(w=>w[0]===k)?.[1]??WORKS.find(w=>w[0]===k)?.[1]??k),...(s.otherWork?[s.otherWork]:[])].join(', ');}
 export function parseBackup(text){
  if(new TextEncoder().encode(text).byteLength>MAX_IMPORT_BYTES)throw Error('Backup troppo grande: massimo 32 MB.');
  let raw;try{raw=JSON.parse(text);}catch{throw Error('Il file non contiene un JSON valido.');}
@@ -192,3 +195,19 @@ export function demoDatabase(){
 }
 
 function validatedPhoto(value){const photo=value??'';if(typeof photo!=='string'||photo.length>700000||(photo&&!/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(photo)))throw Error('Foto non valida.');return photo;}
+
+export function validatePrices(raw,works){
+ if(raw==null)return {};
+ if(typeof raw!=='object'||Array.isArray(raw)||Object.keys(raw).length>WORKS.length)throw Error('Prezzi non validi.');
+ const result={};
+ for(const [key,value] of Object.entries(raw)){
+  if(!works.includes(key)||!workIDs.has(key)||typeof value!=='number'||!Number.isFinite(value)||value<0||value>999999999||Math.abs(value*100-Math.round(value*100))>.0001)throw Error('Prezzo intervento non valido.');
+  result[key]=value;
+ }
+ priceTotal(result);return result;
+}
+export function priceTotal(prices){
+ const cents=Object.values(prices).reduce((total,n)=>total+Math.round(n*100),0);
+ if(cents>99999999900)throw Error('Totale troppo elevato.');
+ return Object.keys(prices).length?cents/100:null;
+}
