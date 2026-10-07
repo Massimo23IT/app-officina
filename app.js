@@ -61,7 +61,7 @@ function updatePartsLinks(){
 function vehiclePage(v){
  const jobs=sortedServices(data(),v.id);
  return `<button class="back" data-action="back">${icon('back')}Le tue auto</button>`+heading(v.plate,name(v),`<div class="heading-actions">${button('Scarica report','export-report','download','secondary',`data-id="${v.id}"`)}${button('Modifica','edit-vehicle','edit','secondary',`data-id="${v.id}"`)}</div>`)+
- `<div class="detail-grid"><section class="panel"><p class="eyebrow">SCHEDA AUTO</p><div class="detail-data">${info('Chilometraggio attuale',km(currentKM(data(),v)))}${info('Cliente',v.owner)}${info('Marca / modello',name(v))}${info('Telefono',v.phone)}</div>${v.notes?`<p class="help preline">${esc(v.notes)}</p>`:''}</section><section class="panel"><p class="eyebrow">PROSSIMO CONTROLLO</p>${nextCard(v)}</section></div>
+ `<div class="detail-grid"><section class="panel"><p class="eyebrow">SCHEDA AUTO</p><div class="detail-data">${info('Chilometraggio attuale',km(currentKM(data(),v)))}${info('Cliente',v.owner)}${info('Marca / modello',name(v))}${info('Telefono',v.phone)}</div>${v.notes?`<p class="help preline">${esc(v.notes)}</p>`:''}<div class="button-row">${button('Cerca auto dalla targa','edit-vehicle','search','secondary',`data-id="${v.id}"`)}</div></section><section class="panel"><p class="eyebrow">PROSSIMO CONTROLLO</p>${nextCard(v)}</section></div>
  <section class="panel planned-panel"><div class="section-title"><div><p class="eyebrow">PROMEMORIA AUTO</p><h2>Interventi da fare</h2></div>${button('Scegli interventi','plan-works','wrench','secondary',`data-id="${v.id}"`)}</div>${v.plannedWorks?.length?`<div class="work-tags">${v.plannedWorks.map(k=>`<span>${esc(WORKS.find(w=>w[0]===k)[1])}</span>`).join('')}</div>`:''}${v.plannedOther?`<p class="preline">${esc(v.plannedOther)}</p>`:''}${!v.plannedWorks?.length&&!v.plannedOther?'<p class="muted">Scegli olio, filtri, freni e gli altri lavori da effettuare su questa auto.</p>':'<p class="help">Le voci saranno proposte quando registri un nuovo intervento.</p>'}</section>
  ${partsSearch(v)}
  <div class="section-title"><h2>Storico interventi <small>(${jobs.length})</small></h2>${button('Registra intervento','new-service','plus','',`data-id="${v.id}"`)}</div>
@@ -136,6 +136,7 @@ function planForm(id){
 function vehicleForm(id){
  const v=data().vehicles.find(v=>v.id===id);modal(v?'Modifica auto':'Nuova auto','SCHEDA AUTO',
  section('Identificazione',`<div class="field-grid">${field('Targa *','plate',v?.plate,'text','required maxlength="24" autocapitalize="characters" autocomplete="off" autofocus')}${field('Km attuali *','kilometers',v?currentKM(data(),v):'','text','required inputmode="numeric" pattern="[0-9]{1,7}" maxlength="7"')}${field('Marca','make',v?.make,'text','maxlength="100"')}${field('Modello','model',v?.model,'text','maxlength="100"')}</div>`)+
+ section('Ricerca gratuita dalla targa',`<div class="button-row">${button('Copia targa','copy-plate','file','secondary')}<a class="button secondary" href="https://www.auto-doc.it/" target="_blank" rel="noopener noreferrer">${icon('search')}Cerca auto dalla targa</a></div><p class="help">1. Copia la targa. 2. Apri AUTODOC e incollala nella ricerca per targa. 3. Torna qui e inserisci marca e modello nei campi sopra, verificandoli sul libretto. La ricerca si svolge sul sito esterno e non compila automaticamente la scheda.</p>`)+
  section('Cliente',`<div class="field-grid">${field('Nome / azienda','owner',v?.owner,'text','maxlength="200" autocomplete="name"')}${field('Telefono','phone',v?.phone,'tel','maxlength="80" autocomplete="tel"')}</div>`)+
  section('Interventi da fare',plannedMenu(v))+
  section('Note auto',area('Motore, anno, telaio o altre informazioni','notes',v?.notes))+'<p class="help">* Campi obbligatori. Inserisci i km senza punti o virgole. Aggiornali quando l’auto torna in officina.</p>','vehicle',id??'');syncFilters();
@@ -226,6 +227,7 @@ async function action(nameAction,element){
  const id=element.dataset.id;
  switch(nameAction){
  case 'install-app':if(installPrompt){const prompt=installPrompt;installPrompt=null;await prompt.prompt();const result=await prompt.userChoice;render();toast(result.outcome==='accepted'?'Installazione avviata. Apri Officina dalla nuova icona.':'Puoi installare Officina in seguito dal menu del browser.');}break;
+ case 'copy-plate':{const input=$('#modal input[name="plate"]'),value=normalizePlate(input?.value??'');if(!value)throw Error('Inserisci prima la targa.');if(navigator.clipboard?.writeText){try{await navigator.clipboard.writeText(value);toast('Targa copiata. Apri AUTODOC e incollala nella ricerca per targa.');break;}catch{}}input.focus();input.select();toast('Targa selezionata: copiala e incollala nella ricerca AUTODOC.');break;}
  case 'plan-works':planForm(id);break;
  case 'export-report':reportForm(id);break;
  case 'new-vehicle':vehicleForm();break;
