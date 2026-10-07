@@ -160,7 +160,8 @@ export function validateDatabase(raw){
   const cost=s.cost??null;if(cost!==null&&(typeof cost!=='number'||!Number.isFinite(cost)||cost<0||cost>999999999||Math.abs(cost*100-Math.round(cost*100))>0.0001))throw Error('Costo non valido.');
   const oilLiters=text(s,'oilLiters',20);
   if(oilLiters){const liters=amount(oilLiters);if(liters===null||liters<=0||liters>100)throw Error('Quantità olio non valida.');}
-  return {id:id(s.id),vehicleID,date:s.date,kilometers,works:[...s.works],engineOil:text(s,'engineOil',300),oilLiters,transmissionOil:text(s,'transmissionOil',300),parts:text(s,'parts',5000),otherWork,notes:text(s,'notes',10000),cost,nextKilometers,nextDate,createdAt:timestamp(s.createdAt)};
+  const photo=s.photo??'';if(typeof photo!=='string'||photo.length>700000||(photo&&!/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(photo)))throw Error('Foto intervento non valida.');
+  return {photo,id:id(s.id),vehicleID,date:s.date,kilometers,works:[...s.works],engineOil:text(s,'engineOil',300),oilLiters,transmissionOil:text(s,'transmissionOil',300),parts:text(s,'parts',5000),otherWork,notes:text(s,'notes',10000),cost,nextKilometers,nextDate,createdAt:timestamp(s.createdAt)};
  });
  if(new Set(services.map(s=>s.id)).size!==services.length)throw Error('Interventi duplicati nel backup.');
  return {version:VERSION,vehicles,services};
